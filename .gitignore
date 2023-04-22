@@ -1,5 +1,7 @@
 # Ignore DataSet
 aksharantar_sampled
+practice.py
+modelPractice.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

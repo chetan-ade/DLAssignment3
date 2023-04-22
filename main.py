@@ -14,7 +14,7 @@ if __name__ == "__main__" :
     # Set device to gpu if available, else set device to cpu 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Hidden Size -> Size of Each Embedding in np.Embedding()
+    # Hidden Size # HyperParameter
     hiddenSize = 256
 
     # Pre-Process the data

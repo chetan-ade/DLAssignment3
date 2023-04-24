@@ -18,12 +18,12 @@ if __name__ == "__main__" :
     configs = {
         'device' : device,
         'hiddenSize' : 128,
-        'cellType' : "RNN",
+        'cellType' : "LSTM",
         'embeddingSize' : 128
     }
 
     # Pre-Process the data
-    dataProcessor = DataProcessing(DATAPATH = 'aksharantar_sampled', targetLanguage = 'hin', device = device)
+    dataProcessor = DataProcessing(DATAPATH = 'aksharantar_sampled', targetLanguage = 'hin', configs = configs)
     
     # Create an encoder object with inputSize = number of characters in source language and hiddenSize
     encoder = model.Encoder(inputSize = dataProcessor.numEncoderTokens, configs = configs).to(device)

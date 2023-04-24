@@ -5,7 +5,7 @@ import torch
 
 class DataProcessing():
 
-    def __init__(self, DATAPATH, targetLanguage, device) :
+    def __init__(self, DATAPATH, targetLanguage, configs) :
 
         ''' Data PreProcessor to compute Encoder Decoder Input. 
 
@@ -20,7 +20,10 @@ class DataProcessing():
                             Target Integer to Character '''
     
         # Store device
-        self.device = device
+        self.device = configs['device']
+        
+        # Store cellType
+        self.cellType = configs['cellType']
 
         # Start Of Word Token
         self.SOW = '>'

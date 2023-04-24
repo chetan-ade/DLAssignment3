@@ -26,6 +26,10 @@ class Training :
         # Tensor of zeros with shape(1, 1, hidden_size)
         encoderHidden = encoder.initHidden()
 
+        if self.dataProcessor.cellType == 'LSTM' :
+            encoderCell = encoder.initCell()
+            encoderHidden = (encoderHidden, encoderCell)
+
         # Make the gradients zero for encodeOptimizer and decoderOptimizer
         encoderOptimizer.zero_grad()
         decoderOptimizer.zero_grad()
@@ -204,6 +208,10 @@ class Training :
             # Initialize the first hidden state for encoder
             encoderHidden = encoder.initHidden()
 
+            if self.dataProcessor.cellType == 'LSTM' :
+                encoderCell = encoder.initCell()
+                encoderHidden = (encoderHidden, encoderCell)
+
             # encoderOutputs = torch.zeros(self.maxLength, encoder.hidden_size, device = self.dataProcessor.device)
 
             # Iterate over the sourceTensor
@@ -211,7 +219,7 @@ class Training :
                 
                 # Pass the charIndex present at sourceTensor[sourceIndex] as input tensor
                 encoderOutput, encoderHidden = encoder(sourceTensor[sourceIndex], encoderHidden)
-                
+
                 # Stores the encoder output for current source character in encoderOutputs # TODO ? Why encoderOutput[0, 0]
                 # encoderOutputs[sourceIndex] += encoderOutput[0, 0]
 
@@ -256,15 +264,16 @@ class Training :
                 # Detach creates a new tensor that is not the part of history graph
                 decoderInput = topi.squeeze().detach()
 
-        
+            # If length of predicted word is not the same as target word, return loss and correctWord = 0
             if(len(decodedCharacters) == len(targetWord)) :
                 return loss.item() / targetTensorLength , 0
             
+            # If length of predicted word is the same as target word, iterate over each character and return correctWord = 0 if a character is not matching
             for i in range(len(decodedCharacters)) :
                 if(decodedCharacters[i] != targetWord[i]) :
                     return loss.item() / targetTensorLength , 0
                 
-            # return decodedCharacters, decoderAttentions[:di + 1]
+            # Return loss and correctWord = 1
             return loss.item() / targetTensorLength , 1
         
     def evaluateSplit(self, split, encoder, decoder, criterion) :

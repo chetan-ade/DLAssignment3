@@ -4,24 +4,26 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class EncoderRNN(nn.Module):
+class Encoder(nn.Module):
 
     # Encoder Constructor
-    def __init__(self, inputSize, hiddenSize, device) :
+    def __init__(self, inputSize, hiddenSize, device, RNNType) :
 
         ''' The encoder of a seq2seq network is a RNN that outputs some value for every character from the input word. 
             For every input character the encoder outputs a vector and a hidden state, and uses the hidden state for the next input character.
             
-            INPUT :     inputSize : Number of Characters in Source Language.
+            INPUT :     inputSize  : Number of Characters in Source Language.
                         hiddenSize : Size of embedding for each character,
                                      Size of Input for GRU / RNN / LSTM,
                                      Size of Hidden State for GRU / RNN / LSTM,
                                      Size of Input for Dense Layer.
+                        device     : device on which tensors are stored
+                        RNNType    : RNN / GRU / LSTM 
   
             OUTPUT :    Encoder Object '''
 
         # Call the constructor for NN Module
-        super(EncoderRNN, self).__init__()
+        super(Encoder, self).__init__()
 
         # Store the parameters in class variables
         self.hiddenSize = hiddenSize
@@ -30,7 +32,8 @@ class EncoderRNN(nn.Module):
         self.embedding = nn.Embedding(num_embeddings = inputSize, embedding_dim = hiddenSize)
 
         # The RNN / LSTM / GRU Layer # Since the input is embedded input, we have the first parameter as hiddenSize # We are setting the size of hidden state also as hiddenSize
-        self.gru = nn.GRU(hiddenSize, hiddenSize)
+        if RNNType == 'GRU' :
+            self.RNNLayer = nn.GRU(hiddenSize, hiddenSize)
 
         # Store device
         self.device = device
@@ -43,16 +46,7 @@ class EncoderRNN(nn.Module):
 
         # Pass the embedded input to the RNN / GRU / LSTM Layer
         output = embedded
-
-        # GRU takes as input 
-        #   1. Tensor of Shape (L, Hin) for un-batched input or Tensor of Shape (L, N, Hin) for batch of size N 
-        #   2. Tensor of Shape (D * num_layers, H out) for un-batched input or Tensor of Shape (D * num_layers, N, H out) for batch of size N 
-        # GRU gives output
-        #   1. Tensor of shape (L, D * H out) for un-batched input or Tensor of Shape (L, N, D * H out) for batch of size N
-        #      It contains the output features (h_t) from the last layer of GRU, for each t.
-        #   2. hidden h_n : tensor of shape (D * num_layers, H out) for un-batched input or Tensor of Shape (D * num_layers, N, H out) for batch of size 
-        #      It contains the final hidden state for the input sequence 
-        output, hidden = self.gru(output, hidden)
+        output, hidden = self.RNNLayer(output, hidden)
 
         # Return the output of RNN / GRU / LSTM Layer   
         return output, hidden
@@ -63,10 +57,10 @@ class EncoderRNN(nn.Module):
         # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
         return torch.zeros(1, 1, self.hiddenSize, device = self.device)
     
-class DecoderRNN(nn.Module):
+class Decoder(nn.Module):
 
     # Decoder Constructor
-    def __init__(self, hiddenSize, output_size, device) :
+    def __init__(self, hiddenSize, output_size, device, RNNType) :
 
         ''' 
             INPUT :     outputSize : Number of Characters in Target Language.
@@ -78,7 +72,7 @@ class DecoderRNN(nn.Module):
             OUTPUT :    Decoder Object '''
 
         # Call the constructor for NN Module
-        super(DecoderRNN, self).__init__()
+        super(Decoder, self).__init__()
 
         # Store the parameters in class variables 
         self.hiddenSize = hiddenSize
@@ -87,7 +81,8 @@ class DecoderRNN(nn.Module):
         self.embedding = nn.Embedding(num_embeddings = output_size, embedding_dim = hiddenSize)
 
         # The RNN / LSTM / GRU Layer
-        self.gru = nn.GRU(hiddenSize, hiddenSize)
+        if RNNType == 'GRU' :
+            self.RNNLayer = nn.GRU(hiddenSize, hiddenSize)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
         self.out = nn.Linear(hiddenSize, output_size)
@@ -108,7 +103,7 @@ class DecoderRNN(nn.Module):
         output = F.relu(output)
 
         # Pass the output of relu and the previous hidden state to GRU
-        output, hidden = self.gru(output, hidden)
+        output, hidden = self.RNNLayer(output, hidden)
 
         # Pass the 0th Output through Linear Layer and then through SoftMax Layer # ? Why the 0th Layer? Is it the final layer?
         output = self.softmax(self.out(output[0]))

@@ -17,14 +17,17 @@ if __name__ == "__main__" :
     # Hidden Size # HyperParameter
     hiddenSize = 256
 
+    # RNN Type # HyperParameter
+    RNNType = "GRU"
+
     # Pre-Process the data
     dataProcessor = DataProcessing(DATAPATH = 'aksharantar_sampled', targetLanguage = 'hin', device = device)
     
     # Create an encoder object with inputSize = number of characters in source language and hiddenSize
-    encoder = model.EncoderRNN(inputSize = dataProcessor.numEncoderTokens, hiddenSize = hiddenSize, device = device).to(device)
+    encoder = model.Encoder(inputSize = dataProcessor.numEncoderTokens, hiddenSize = hiddenSize, device = device, RNNType = RNNType).to(device)
     
     # Create a decoder object with hiddenSie and outputSize = number of characters in target language
-    decoder = model.DecoderRNN(hiddenSize, dataProcessor.numDecoderTokens, device = device).to(device)
+    decoder = model.Decoder(hiddenSize, dataProcessor.numDecoderTokens, device = device, RNNType = RNNType).to(device)
     
     # Create a model Training object with the data Processor
     modelTraining = Training(dataProcessor)

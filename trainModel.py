@@ -11,22 +11,14 @@ import matplotlib.ticker as ticker
 
 teacherForcingRatio = 0.5
 
-'''
-    Input : 
-        sourceTensor :      Tensor of indices for the source word
-        targetTensor :      Tensor of indices for the target word
-        encoder :           Encoder Object
-        decoder :           Decoder Object
-        encoderOptimizer :  Optimizer used for encoder
-        decoderOptimizer :  Optimizer used for decoder
-        criterion :         TODO
-        maxLength :         TODO
-'''
-
 class Training :
     
     def __init__(self, dataProcessor) :
+
+        # Store the dataProcessor object for using its member variables and functions
         self.dataProcessor = dataProcessor
+
+        # Store the maxLength in class variable
         self.maxLength = dataProcessor.getMaxLength()
 
     def train(self, sourceTensor, targetTensor, encoder, decoder, encoderOptimizer, decoderOptimizer, criterion) :
@@ -264,8 +256,16 @@ class Training :
                 # Detach creates a new tensor that is not the part of history graph
                 decoderInput = topi.squeeze().detach()
 
+        
+            if(len(decodedCharacters) == len(targetWord)) :
+                return loss.item() / targetTensorLength , 0
+            
+            for i in range(len(decodedCharacters)) :
+                if(decodedCharacters[i] != targetWord[i]) :
+                    return loss.item() / targetTensorLength , 0
+                
             # return decodedCharacters, decoderAttentions[:di + 1]
-            return loss.item() / targetTensorLength
+            return loss.item() / targetTensorLength , 1
         
     def evaluateSplit(self, split, encoder, decoder, criterion) :
         
@@ -279,9 +279,16 @@ class Training :
         # Initialize Total Loss for Validation Data
         totalLoss = 0
 
-        # Accumulate Loss for all Words
+        # Initialize Number of Correct Words
+        correctWords = 0
+
+        # Accumulate Loss and Correct Word Count for all Words
         for i in range(len(pairs)) :
-            totalLoss += self.evaluateWord(encoder, decoder, pairs[i][0], pairs[i][1], criterion)
+
+            wordLoss, isCorrectWord = self.evaluateWord(encoder, decoder, pairs[i][0], pairs[i][1], criterion)
+            
+            totalLoss += wordLoss
+            correctWords += isCorrectWord
 
             if i % (len(pairs) // 10) == 0 :
                 print(split, "Data Evaluated :", i, "/", len(pairs))
@@ -289,7 +296,11 @@ class Training :
         # Calculate Average Valid Loss
         avgValidLoss = totalLoss / len(pairs)
 
+        # Calculate Accuracy 
+        accuracy = correctWords / len(pairs)
+
         print(split, "Loss :", avgValidLoss)
+        print(split, "Accuracy :", accuracy)
         return avgValidLoss
 
 

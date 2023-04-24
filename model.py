@@ -31,19 +31,20 @@ class Encoder(nn.Module):
         self.cellType = configs['cellType']
         self.device = configs['device']
         self.numLayersEncoderDecoder = configs['numLayersEncoderDecoder']
+        self.dropout = configs['dropout']
 
         # Create an Embedding for the Input # Each character will have an embedding of size = hiddenSize
         self.embedding = nn.Embedding(num_embeddings = inputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer # Since the input is embedded input, we have the first parameter as hiddenSize # We are setting the size of hidden state also as hiddenSize
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
 
         elif self.cellType == 'RNN' : 
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
 
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
 
     # Encoder Forward Pass
     def forward(self, input, hidden):
@@ -62,13 +63,13 @@ class Encoder(nn.Module):
     def initHidden(self) :
 
         # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
-        return torch.zeros(self.numLayersEncoder, 1, self.hiddenSize, device = self.device)
+        return torch.zeros(self.numLayersEncoderDecoder, 1, self.hiddenSize, device = self.device)
     
     # Encoder Hidden Cell Initialization
     def initCell(self) :
 
         # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
-        return torch.zeros(self.numLayersEncoder, 1, self.hiddenSize, device = self.device)
+        return torch.zeros(self.numLayersEncoderDecoder, 1, self.hiddenSize, device = self.device)
     
 class Decoder(nn.Module):
 
@@ -93,19 +94,20 @@ class Decoder(nn.Module):
         self.cellType = configs['cellType']
         self.device = configs['device'] 
         self.numLayersEncoderDecoder = configs['numLayersEncoderDecoder']
+        self.dropout = configs['dropout']
 
         # Create an Embedding for the Input
         self.embedding = nn.Embedding(num_embeddings = outputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
 
         elif self.cellType == 'RNN' :
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
         
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
         self.out = nn.Linear(self.hiddenSize, outputSize)

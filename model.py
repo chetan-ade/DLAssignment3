@@ -38,6 +38,9 @@ class Encoder(nn.Module):
         if self.cellType == 'GRU' :
             self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize)
 
+        elif self.cellType == 'RNN' : 
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize)
+
     # Encoder Forward Pass
     def forward(self, input, hidden):
 
@@ -86,6 +89,9 @@ class Decoder(nn.Module):
         # The RNN / LSTM / GRU Layer
         if self.cellType == 'GRU' :
             self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize)
+
+        elif self.cellType == 'RNN' :
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
         self.out = nn.Linear(self.hiddenSize, outputSize)

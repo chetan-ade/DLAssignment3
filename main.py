@@ -18,7 +18,7 @@ if __name__ == "__main__" :
     configs = {
         'device' : device,
         'hiddenSize' : 128,
-        'cellType' : "GRU",
+        'cellType' : "RNN",
         'embeddingSize' : 128
     }
 

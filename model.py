@@ -7,7 +7,7 @@ import torch.nn.functional as F
 class Encoder(nn.Module):
 
     # Encoder Constructor
-    def __init__(self, inputSize, hiddenSize, device, RNNType) :
+    def __init__(self, inputSize, configs) :
 
         ''' The encoder of a seq2seq network is a RNN that outputs some value for every character from the input word. 
             For every input character the encoder outputs a vector and a hidden state, and uses the hidden state for the next input character.
@@ -18,7 +18,7 @@ class Encoder(nn.Module):
                                      Size of Hidden State for GRU / RNN / LSTM,
                                      Size of Input for Dense Layer.
                         device     : device on which tensors are stored
-                        RNNType    : RNN / GRU / LSTM 
+                        cellType    : RNN / GRU / LSTM 
   
             OUTPUT :    Encoder Object '''
 
@@ -26,17 +26,17 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
 
         # Store the parameters in class variables
-        self.hiddenSize = hiddenSize
+        self.hiddenSize = configs['hiddenSize']
+        self.embeddingSize = configs['embeddingSize']
+        self.cellType = configs['cellType']
+        self.device = configs['device']
 
         # Create an Embedding for the Input # Each character will have an embedding of size = hiddenSize
-        self.embedding = nn.Embedding(num_embeddings = inputSize, embedding_dim = hiddenSize)
+        self.embedding = nn.Embedding(num_embeddings = inputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer # Since the input is embedded input, we have the first parameter as hiddenSize # We are setting the size of hidden state also as hiddenSize
-        if RNNType == 'GRU' :
-            self.RNNLayer = nn.GRU(hiddenSize, hiddenSize)
-
-        # Store device
-        self.device = device
+        if self.cellType == 'GRU' :
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize)
 
     # Encoder Forward Pass
     def forward(self, input, hidden):
@@ -60,7 +60,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
 
     # Decoder Constructor
-    def __init__(self, hiddenSize, output_size, device, RNNType) :
+    def __init__(self, outputSize, configs) :
 
         ''' 
             INPUT :     outputSize : Number of Characters in Target Language.
@@ -75,23 +75,23 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         # Store the parameters in class variables 
-        self.hiddenSize = hiddenSize
+        self.hiddenSize = configs['hiddenSize']
+        self.embeddingSize = configs['embeddingSize']
+        self.cellType = configs['cellType']
+        self.device = configs['device']
 
         # Create an Embedding for the Input
-        self.embedding = nn.Embedding(num_embeddings = output_size, embedding_dim = hiddenSize)
+        self.embedding = nn.Embedding(num_embeddings = outputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer
-        if RNNType == 'GRU' :
-            self.RNNLayer = nn.GRU(hiddenSize, hiddenSize)
+        if self.cellType == 'GRU' :
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
-        self.out = nn.Linear(hiddenSize, output_size)
+        self.out = nn.Linear(self.hiddenSize, outputSize)
 
         # SoftMax Layer for the final output
         self.softmax = nn.LogSoftmax(dim = 1)
-
-        # Store device
-        self.device = device
 
     # Decoder Forward Pass
     def forward(self, input, hidden) :

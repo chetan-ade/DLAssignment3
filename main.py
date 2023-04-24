@@ -19,7 +19,9 @@ if __name__ == "__main__" :
         'device' : device,
         'hiddenSize' : 128,
         'cellType' : "LSTM",
-        'embeddingSize' : 128
+        'embeddingSize' : 128,
+        'numLayersEncoder' : 2,
+        'numLayersDecoder' : 2,
     }
 
     # Pre-Process the data

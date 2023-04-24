@@ -30,19 +30,20 @@ class Encoder(nn.Module):
         self.embeddingSize = configs['embeddingSize']
         self.cellType = configs['cellType']
         self.device = configs['device']
+        self.numLayersEncoder = configs['numLayersEncoder']
 
         # Create an Embedding for the Input # Each character will have an embedding of size = hiddenSize
         self.embedding = nn.Embedding(num_embeddings = inputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer # Since the input is embedded input, we have the first parameter as hiddenSize # We are setting the size of hidden state also as hiddenSize
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoder)
 
         elif self.cellType == 'RNN' : 
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoder)
 
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoder)
 
     # Encoder Forward Pass
     def forward(self, input, hidden):
@@ -61,13 +62,13 @@ class Encoder(nn.Module):
     def initHidden(self) :
 
         # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
-        return torch.zeros(1, 1, self.hiddenSize, device = self.device)
+        return torch.zeros(self.numLayersEncoder, 1, self.hiddenSize, device = self.device)
     
     # Encoder Hidden Cell Initialization
     def initCell(self) :
 
         # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
-        return torch.zeros(1, 1, self.hiddenSize, device = self.device)
+        return torch.zeros(self.numLayersEncoder, 1, self.hiddenSize, device = self.device)
     
 class Decoder(nn.Module):
 
@@ -90,20 +91,21 @@ class Decoder(nn.Module):
         self.hiddenSize = configs['hiddenSize']
         self.embeddingSize = configs['embeddingSize']
         self.cellType = configs['cellType']
-        self.device = configs['device']
+        self.device = configs['device'] 
+        self.numLayersDecoder = configs['numLayersDecoder']
 
         # Create an Embedding for the Input
         self.embedding = nn.Embedding(num_embeddings = outputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder)
 
         elif self.cellType == 'RNN' :
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder)
         
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
         self.out = nn.Linear(self.hiddenSize, outputSize)

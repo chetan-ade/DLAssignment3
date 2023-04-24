@@ -20,8 +20,7 @@ if __name__ == "__main__" :
         'hiddenSize' : 128,
         'cellType' : "LSTM",
         'embeddingSize' : 128,
-        'numLayersEncoder' : 2,
-        'numLayersDecoder' : 2,
+        'numLayersEncoderDecoder' : 2,
     }
 
     # Pre-Process the data

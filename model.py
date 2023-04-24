@@ -30,20 +30,20 @@ class Encoder(nn.Module):
         self.embeddingSize = configs['embeddingSize']
         self.cellType = configs['cellType']
         self.device = configs['device']
-        self.numLayersEncoder = configs['numLayersEncoder']
+        self.numLayersEncoderDecoder = configs['numLayersEncoderDecoder']
 
         # Create an Embedding for the Input # Each character will have an embedding of size = hiddenSize
         self.embedding = nn.Embedding(num_embeddings = inputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer # Since the input is embedded input, we have the first parameter as hiddenSize # We are setting the size of hidden state also as hiddenSize
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoder)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
 
         elif self.cellType == 'RNN' : 
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoder)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
 
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoder)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
 
     # Encoder Forward Pass
     def forward(self, input, hidden):
@@ -92,20 +92,20 @@ class Decoder(nn.Module):
         self.embeddingSize = configs['embeddingSize']
         self.cellType = configs['cellType']
         self.device = configs['device'] 
-        self.numLayersDecoder = configs['numLayersDecoder']
+        self.numLayersEncoderDecoder = configs['numLayersEncoderDecoder']
 
         # Create an Embedding for the Input
         self.embedding = nn.Embedding(num_embeddings = outputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
 
         elif self.cellType == 'RNN' :
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
         
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
         self.out = nn.Linear(self.hiddenSize, outputSize)

@@ -25,6 +25,9 @@ class DataProcessing():
         # Store cellType
         self.cellType = configs['cellType']
 
+        # Store Attention Flag
+        self.attention = configs['attention']
+
         # Start Of Word Token
         self.SOW = '>'
         self.SOW2Int = 0
@@ -133,19 +136,30 @@ class DataProcessing():
         self.numDecoderTokens = len(targetChars) + 4
 
         # Maximum length of a source word
-        self.maxSourceLength = max([len(txt) for txt in source])
+        self.maxSourceLengthWord = max([len(txt) for txt in source])
 
         # Maximum length of a target word
-        self.maxTargetLength = max([len(txt) for txt in target])
+        self.maxTargetLengthWord = max([len(txt) for txt in target])
+
+        # Store val source word max length and val target word max length
+        valSourceMax = max([len(txt) for txt in self.valid["source"].to_list()])
+        testSourceMax = max([len(txt) for txt in self.test["source"].to_list()])
+
+        # Store test source word max length and test target word max length
+        valTargetMax = max([len(txt) for txt in self.valid["target"].to_list()])
+        testTargetMax = max([len(txt) for txt in self.test["target"].to_list()])
+
+        self.maxSourceLengthWord = max([self.maxSourceLengthWord, valSourceMax, testSourceMax])
+        self.maxTargetLengthWord = max([self.maxTargetLengthWord, valTargetMax, testTargetMax])
 
         # Number of Pairs in Train Data
         self.numTrainPairs = len(source)
 
-        print("Number of Source-Target Pairs :", self.numTrainPairs)
-        print("Source Language Vocabulary Length (Number of Encoder Tokens)  :", self.numEncoderTokens)
-        print("Target Language Vocabulary length (Number of Decoder Tokens)  :", self.numDecoderTokens)
-        print("Max sequence length for inputs (Max Source Lang Word Length)  :", self.maxSourceLength)
-        print("Max sequence length for outputs (Max Source Lang Word Length) :", self.maxTargetLength)
+        # print("Number of Source-Target Pairs :", self.numTrainPairs)
+        # print("Source Language Vocabulary Length (Number of Encoder Tokens)  :", self.numEncoderTokens)
+        # print("Target Language Vocabulary length (Number of Decoder Tokens)  :", self.numDecoderTokens)
+        # print("Max sequence length for inputs (Max Source Lang Word Length)  :", self.maxSourceLengthWord)
+        # print("Max sequence length for outputs (Max Source Lang Word Length) :", self.maxTargetLengthWord)
 
         # Create the required dictionaries and store them in sourceVocab and targetVocab respectively
         sourceVocab = self.dictionaryLookup(sourceChars)
@@ -179,10 +193,10 @@ class DataProcessing():
 
         # Add Padding after EOW 
         if language == "source" :
-            indexes.extend([self.PAD2Int for i in range(self.maxSourceLength - len(indexes) + 1)])
+            indexes.extend([self.PAD2Int for i in range(self.maxSourceLengthWord - len(indexes) + 1)])
 
         else :
-            indexes.extend([self.PAD2Int for i in range(self.maxTargetLength - len(indexes) + 1)])
+            indexes.extend([self.PAD2Int for i in range(self.maxTargetLengthWord - len(indexes) + 1)])
 
         return torch.tensor(indexes, dtype = torch.long, device = self.device).view(-1, 1)
 
@@ -219,12 +233,8 @@ class DataProcessing():
         
         return list(zip(self.test["source"].to_list(), self.test["target"].to_list()))
     
-    def getMaxLength(self) :
+    def getMaxLengthWord(self) :
         
         ''' Returns the maximum of sourceMaxLength and targetMaxLength '''
 
-        return max(self.maxSourceLength, self.maxTargetLength)
-
-
-if __name__ == "__main__":
-    dataProcessor = DataProcessing(DATAPATH = 'aksharantar_sampled', targetLanguage = 'hin')
+        return max(self.maxSourceLengthWord, self.maxTargetLengthWord)

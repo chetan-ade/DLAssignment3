@@ -19,7 +19,10 @@ class Training :
         self.dataProcessor = dataProcessor
 
         # Store the maxLength in class variable
-        self.maxLength = dataProcessor.getMaxLength()
+        self.maxLengthWord = dataProcessor.getMaxLengthWord()
+        self.maxLengthTensor = self.maxLengthWord + 1
+
+        self.attention = dataProcessor.attention
 
     def train(self, sourceTensor, targetTensor, encoder, decoder, encoderOptimizer, decoderOptimizer, criterion) :
 
@@ -40,7 +43,8 @@ class Training :
         # Length of Target Tensor
         targetTensorLength = targetTensor.size(0)
 
-        # encoderOutputs = torch.zeros(self.maxLength, encoder.hidden_size, device = self.dataProcessor.device)
+        if self.attention :
+            encoderOutputs = torch.zeros(self.maxLengthTensor, encoder.hiddenSize, device = self.dataProcessor.device)
 
         # Initialize training loss to zero
         loss = 0
@@ -51,8 +55,9 @@ class Training :
             # Pass the charIndex present at sourceTensor[sourceIndex] as input tensor
             encoderOutput, encoderHidden = encoder(sourceTensor[sourceIndex], encoderHidden)
 
-            # Stores the encoder output for current source character in encoderOutputs [used in attention decoders]
-            # encoderOutputs[sourceIndex] = encoderOutput[0, 0]
+            if self.attention :
+                # Stores the encoder output for current source character in encoderOutputs [used in attention decoders]
+                encoderOutputs[sourceIndex] = encoderOutput[0, 0]
 
         # Give SOW (Start of Word) as Decoder Input
         decoderInput = torch.tensor([[self.dataProcessor.SOW2Int]], device = self.dataProcessor.device)
@@ -70,8 +75,14 @@ class Training :
             # Traverse over the target tensor
             for di in range(targetTensorLength) :
 
-                # Pass the decoderInput, encoderOutputs, and decoderHidden to the decoder
-                decoderOutput, decoderHidden = decoder(decoderInput, decoderHidden)
+                if self.attention :
+                    # Pass the decoderInput, and decoderHidden to the decoder
+                    decoderOutput, decoderHidden, decoderAttention = decoder(decoderInput, decoderHidden, encoderOutputs)
+
+                else :
+
+                    # Pass the decoderInput, encoderOutputs, and decoderHidden to the decoder
+                    decoderOutput, decoderHidden = decoder(decoderInput, decoderHidden)
 
                 # Calculate Loss between the index of character predicted and actual index of character
                 loss += criterion(decoderOutput, targetTensor[di])
@@ -85,8 +96,12 @@ class Training :
             # Traverse over the target tensor
             for di in range(targetTensorLength) :
 
-                # Pass the decoderInput, encoderOutputs, and decoderHidden to the decoder
-                decoderOutput, decoderHidden = decoder(decoderInput, decoderHidden)
+                if self.attention :
+                    decoderOutput, decoderHidden, decoderAttention = decoder(decoderInput, decoderHidden, encoderOutputs)
+
+                else :
+                    # Pass the decoderInput, encoderOutputs, and decoderHidden to the decoder
+                    decoderOutput, decoderHidden = decoder(decoderInput, decoderHidden)
 
                 # Returns the top value and top index in decoderOutput -> decoderOutput is output from softmax # TODO ? Is the syntax correct??
                 topv, topi = decoderOutput.topk(1)
@@ -212,7 +227,8 @@ class Training :
                 encoderCell = encoder.initCell()
                 encoderHidden = (encoderHidden, encoderCell)
 
-            # encoderOutputs = torch.zeros(self.maxLength, encoder.hidden_size, device = self.dataProcessor.device)
+            if self.attention :
+                encoderOutputs = torch.zeros(self.maxLengthTensor, encoder.hiddenSize, device = self.dataProcessor.device)
 
             # Iterate over the sourceTensor
             for sourceIndex in range(sourceTensorLength) :
@@ -220,8 +236,10 @@ class Training :
                 # Pass the charIndex present at sourceTensor[sourceIndex] as input tensor
                 encoderOutput, encoderHidden = encoder(sourceTensor[sourceIndex], encoderHidden)
 
-                # Stores the encoder output for current source character in encoderOutputs # TODO ? Why encoderOutput[0, 0]
-                # encoderOutputs[sourceIndex] += encoderOutput[0, 0]
+                if self.attention : 
+                    
+                    # Stores the encoder output for current source character in encoderOutputs
+                    encoderOutputs[sourceIndex] += encoderOutput[0, 0]
 
             # Give SOW (Start of Word) as Decoder Input
             decoderInput = torch.tensor([[self.dataProcessor.SOW2Int]], device = self.dataProcessor.device)  
@@ -232,18 +250,23 @@ class Training :
             # List of decoded characters
             decodedCharacters = []
 
-            # TODO -> Understand Attention
-            # decoderAttentions = torch.zeros(maxLength, maxLength)
+            if self.attention :
+                decoderAttentions = torch.zeros(self.maxLengthTensor, self.maxLengthTensor)
 
             loss = 0
 
             # Iterate till we get EOW
-            for di in range(self.maxLength):
-
-                # Pass the decoderInput, decoderHidden and encoderOutputs to the decoder
-                decoderOutput, decoderHidden = decoder(decoderInput, decoderHidden)
+            for di in range(self.maxLengthTensor):
                 
-                # decoderAttentions[di] = decoder_attention.data
+                if self.attention :
+                    decoderOutput, decoderHidden, decoderAttention = decoder(decoderInput, decoderHidden, encoderOutputs)
+
+                else : 
+                    # Pass the decoderInput, decoderHidden and encoderOutputs to the decoder
+                    decoderOutput, decoderHidden = decoder(decoderInput, decoderHidden)
+                
+                if self.attention :
+                    decoderAttentions[di] = decoderAttention.data
                 
                 # Since the output of decoder is softmax, we want the value and index of maximum probability
                 topv, topi = decoderOutput.data.topk(1)
@@ -263,6 +286,9 @@ class Training :
                 # Squeeze removes all dimensions that are 1 from tensor
                 # Detach creates a new tensor that is not the part of history graph
                 decoderInput = topi.squeeze().detach()
+
+            if False :
+                plt.matshow(decoderAttentions[:di + 1].numpy())
 
             # If length of predicted word is not the same as target word, return loss and correctWord = 0
             if(len(decodedCharacters) == len(targetWord)) :

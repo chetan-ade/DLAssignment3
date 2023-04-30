@@ -9,7 +9,7 @@ from dataProcessing import DataProcessing
 import main
 
 def sweepTrain():
-    
+
     wandb.init(config = sweepConfigs)
 
     configs["hiddenSize"] = wandb.config.hidden_size
@@ -60,7 +60,7 @@ if __name__ == "__main__" :
         },
 
         'epoch':{
-            'values' : [10, 20]
+            'values' : [10, 15, 20]
         },
 
         'hidden_size':{

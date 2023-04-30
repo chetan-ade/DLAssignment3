@@ -35,21 +35,16 @@ class Training :
         sourceTensor = sourceTensor.squeeze()
         targetTensor = targetTensor.squeeze()
 
-        # Tensor of zeros with shape(1, 1, hidden_size)
         encoderHidden = encoder.initHidden()
 
         if self.dataProcessor.cellType == 'LSTM' :
             encoderCell = encoder.initCell()
             encoderHidden = (encoderHidden, encoderCell)
 
-        # Make the gradients zero for encodeOptimizer and decoderOptimizer
         encoderOptimizer.zero_grad()
         decoderOptimizer.zero_grad()
 
-        # Length of Source Tensor
         sourceTensorLength = sourceTensor.size(0)
-
-        # Length of Target Tensor
         targetTensorLength = targetTensor.size(0)
 
         if self.attention :
@@ -170,8 +165,8 @@ class Training :
             validationLoss, validationAccuracy = self.evaluate(validLoader, encoder, decoder)
 
             print('Loss For Epoch ' + str(epoch + 1) + '/' + str(self.epochs) + ' : ' + str(epochLoss) + '\n')
-            print('Validation Loss : ', validationLoss)
-            print(' Validation Accuracy :', validationAccuracy)
+            print('Validation Loss :', validationLoss)
+            print('Validation Accuracy :', validationAccuracy, '%')
 
             # wandb.log({'train loss':epochLoss,'validation loss':validationLoss, 'validation accuracy':validationAccuracy})
     
@@ -193,10 +188,12 @@ class Training :
             loss += batchLoss
             totalCorrectWords += correctWords
 
-            print("Evaluate Batch : " + str(batchNumber) + "/" + str(totalBatches))
+            if batchNumber % (totalBatches // 10) == 0 :
+                print("Evaluate Batch : " + str(batchNumber) + "/" + str(totalBatches))
+            
             batchNumber += 1 
 
-        return (loss / totalBatches), (totalCorrectWords / totalWords)
+        return (loss / totalBatches), (100 * totalCorrectWords / totalWords)
 
     def evaluateOneBatch(self, sourceTensorBatch, targetTensorBatch, encoder, decoder, criterion) :
 
@@ -252,6 +249,8 @@ class Training :
                 # Pass the decoderInput, decoderHidden and encoderOutputs to the decoder
                 decoderOutput, decoderHidden = decoder(decoderInput, decoderHidden)
             
+            loss += criterion(decoderOutput, targetTensor[di].squeeze())
+
             topv, topi = decoderOutput.data.topk(1)
             decoderInput = torch.cat(tuple(topi))
             predictedBatchOutput[di] = torch.cat(tuple(topi))
@@ -261,7 +260,7 @@ class Training :
                 plt.matshow(decoderAttentions[:di + 1].numpy())
 
         predictedBatchOutput = predictedBatchOutput.transpose(0,1)
-        
+
         ignore = [self.dataProcessor.SOW2Int, self.dataProcessor.EOW2Int, self.dataProcessor.PAD2Int]
 
         for di in range(predictedBatchOutput.size()[0]):
@@ -272,4 +271,4 @@ class Training :
             if predicted == actual:
                 correctWords += 1
         
-        return loss, correctWords
+        return loss.item(), correctWords

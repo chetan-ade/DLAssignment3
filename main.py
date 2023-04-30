@@ -82,14 +82,14 @@ if __name__ == "__main__" :
     configs = { # Create a configuration dictionary
     
         'device'                    : device,  # Available Device (CPU / CUDA) 
-        'hiddenSize'                : 64,     # Hidden Size in RNN Layer
+        'hiddenSize'                : 256,     # Hidden Size in RNN Layer
         'cellType'                  : "LSTM",   # Cell Type = ['RNN', 'GRU', 'LSTM']
         'embeddingSize'             : 256,     # Embedding Size for each character
-        'numLayersEncoderDecoder'   : 3,       # Number of RNN Layers in Encoder / Decoder
-        'dropout'                   : 0,       # Dropout Probability
+        'numLayersEncoderDecoder'   : 2,       # Number of RNN Layers in Encoder / Decoder
+        'dropout'                   : 0.2,       # Dropout Probability
         'attention'                 : False,   # True = AttentionDecoder, False = Decoder
-        'batchSize'                 : 512,      # Batch Size for Training and Evaluating
-        'epochs'                    : 2,       # Total Number of Training Epochs
+        'batchSize'                 : 32,      # Batch Size for Training and Evaluating
+        'epochs'                    : 10,       # Total Number of Training Epochs
         'bidirectional'             : True,
         'learningRate'              : 0.001
 

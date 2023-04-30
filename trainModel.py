@@ -74,8 +74,7 @@ class Training :
         decoderHidden = encoderHidden
 
         # Randomly choose to use teacher forcing or not
-        # useTeacherForcing = True if random.random() < teacherForcingRatio else False
-        useTeacherForcing = False
+        useTeacherForcing = True if random.random() < teacherForcingRatio else False
 
         # Teacher forcing: Feed the target as the next input
         if useTeacherForcing:

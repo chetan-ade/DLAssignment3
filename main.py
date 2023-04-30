@@ -77,7 +77,8 @@ def trainConfigsGrid(device, dataProcessor) :
 if __name__ == "__main__" :
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+    dataProcessor = DataProcessing('aksharantar_sampled', 'hin', device) # Pre-Process the data
+
     configs = { # Create a configuration dictionary
     
         'device'                    : device,  # Available Device (CPU / CUDA) 
@@ -94,7 +95,7 @@ if __name__ == "__main__" :
 
     }
 
-    # trainForConfigs(configs, dataProcessor) # Train for configurations
+    trainForConfigs(configs, dataProcessor) # Train for configurations
                     
     
 

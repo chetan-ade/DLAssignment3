@@ -5,6 +5,8 @@ import random
 import torch
 import torch.nn as nn
 from torch import optim
+from torch.utils.data import DataLoader
+from torch.autograd import Variable
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -19,12 +21,18 @@ class Training :
         self.dataProcessor = dataProcessor
 
         # Store the maxLength in class variable
-        self.maxLengthWord = dataProcessor.getMaxLengthWord()
+        self.maxLengthWord = dataProcessor.maxLengthWord
         self.maxLengthTensor = self.maxLengthWord + 1
 
         self.attention = dataProcessor.attention
 
-    def train(self, sourceTensor, targetTensor, encoder, decoder, encoderOptimizer, decoderOptimizer, criterion) :
+        self.batchSize = self.dataProcessor.batchSize
+        self.epochs = self.dataProcessor.epochs
+
+    def trainOneBatch(self, sourceTensor, targetTensor, encoder, decoder, encoderOptimizer, decoderOptimizer, criterion) :
+
+        sourceTensor = sourceTensor.squeeze()
+        targetTensor = targetTensor.squeeze()
 
         # Tensor of zeros with shape(1, 1, hidden_size)
         encoderHidden = encoder.initHidden()
@@ -44,7 +52,7 @@ class Training :
         targetTensorLength = targetTensor.size(0)
 
         if self.attention :
-            encoderOutputs = torch.zeros(self.maxLengthTensor, encoder.hiddenSize, device = self.dataProcessor.device)
+            encoderOutputs = torch.zeros(self.maxLengthTensor, self.batchSize, encoder.hiddenSize, device = self.dataProcessor.device)
 
         # Initialize training loss to zero
         loss = 0
@@ -57,10 +65,10 @@ class Training :
 
             if self.attention :
                 # Stores the encoder output for current source character in encoderOutputs [used in attention decoders]
-                encoderOutputs[sourceIndex] = encoderOutput[0, 0]
+                encoderOutputs[sourceIndex] = encoderOutput[0]
 
         # Give SOW (Start of Word) as Decoder Input
-        decoderInput = torch.tensor([[self.dataProcessor.SOW2Int]], device = self.dataProcessor.device)
+        decoderInput = torch.tensor([[self.dataProcessor.SOW2Int] * self.batchSize], device = self.dataProcessor.device)
 
         # The hidden state input to decoder is the final hidden state output of encoder
         decoderHidden = encoderHidden
@@ -103,7 +111,7 @@ class Training :
                     # Pass the decoderInput, encoderOutputs, and decoderHidden to the decoder
                     decoderOutput, decoderHidden = decoder(decoderInput, decoderHidden)
 
-                # Returns the top value and top index in decoderOutput -> decoderOutput is output from softmax # TODO ? Is the syntax correct??
+                # Returns the top value and top index in decoderOutput -> decoderOutput is output from softmax 
                 topv, topi = decoderOutput.topk(1)
 
                 # Squeeze to remove all dimensions that are 1
@@ -114,8 +122,8 @@ class Training :
                 loss += criterion(decoderOutput, targetTensor[di])
                 
                 # If decoder outputs EOW, it has generated an entire word
-                if decoderInput.item() == self.dataProcessor.EOW2Int:
-                    break
+                # if decoderInput.item() == self.dataProcessor.EOW2Int:
+                #     break
 
         # Once the forward pass has been done, start the backward pass through time
         loss.backward()
@@ -127,61 +135,49 @@ class Training :
         # Return average loss for each character in target word
         return loss.item() / targetTensorLength
 
-    def trainIters(self, encoder, decoder, nIters, printEvery = 1000, plotEvery = 100, learningRate = 0.01):
-
-        plot_losses = []
-        print_loss_total = 0  # Reset every printEvery
-        plot_loss_total = 0  # Reset every plotEvery
+    def train(self, encoder, decoder, learningRate = 0.001):
 
         # We will use SGD for both encoder and decoder 
-        encoder_optimizer = optim.SGD(encoder.parameters(), lr = learningRate)
-        decoder_optimizer = optim.SGD(decoder.parameters(), lr = learningRate)
-
-        # List of tuple of train source words and train target words
-        trainPairs = self.dataProcessor.createTrainPairs()
-
-        # List of tuple of train source word converted to tensor and train target word converted to tensor
-        trainingTensorPairs = []
-        for i in range(nIters) :
-            trainingTensorPairs.append(self.dataProcessor.tensorsFromPair(trainPairs[i]))
-            
+        encoder_optimizer = optim.NAdam(encoder.parameters(), lr = self.dataProcessor.learningRate)
+        decoder_optimizer = optim.NAdam(decoder.parameters(), lr = self.dataProcessor.learningRate)
+    
         # Loss Function
         criterion = nn.NLLLoss()
+    
+        trainLoader = DataLoader(self.dataProcessor.trainingTensorPairs, batch_size = self.batchSize, shuffle = True)
+        validLoader = DataLoader(self.dataProcessor.validTensorPairs, batch_size = self.batchSize, shuffle = True)
+        
+        plot_losses = []
+        plot_loss_total = 0  # Reset every plotEvery
 
-        for iter in range(1, nIters + 1) :
+        for epoch in range(self.epochs) :
 
-            # Select a pair from training data
-            trainingPair = trainingTensorPairs[iter - 1]
-            sourceTensor = trainingPair[0]
-            targetTensor = trainingPair[1]
+            epochLoss = 0 
+            batchNumber = 0
+            totalBatches = self.dataProcessor.numTrainPairs // self.batchSize
 
-            # Train the module for train data pair
-            loss = self.train(sourceTensor, targetTensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+            for sourceTensor, targetTensor in trainLoader :
 
-            # Store the loss for printing and plotting
-            print_loss_total += loss
-            plot_loss_total += loss
+                sourceTensor = sourceTensor.transpose(0, 1)
+                targetTensor = targetTensor.transpose(0, 1)
 
-            if iter % printEvery == 0:
+                batchLoss = self.trainOneBatch(sourceTensor, targetTensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
 
-                # Calculate average loss
-                print_loss_avg = print_loss_total / printEvery
-                print_loss_total = 0
-                print("Train Iter", iter, "/", nIters, " Loss : ", print_loss_avg )
+                # Store the loss for printing and plotting
+                epochLoss += batchLoss
+                plot_loss_total += batchLoss
 
-            if iter % plotEvery == 0:
+                batchNumber += 1
 
-                # Calculate average loss
-                plot_loss_avg = plot_loss_total / plotEvery
+                if (batchNumber % (totalBatches // 10)) == 0 :
+                    print('Loss For Batch ' + str(batchNumber) + '/' + str(totalBatches) + ' : ' + str(batchLoss))
 
-                # Append to list for plotting
-                plot_losses.append(plot_loss_avg)
-                plot_loss_total = 0
-            
-            # print('Training of Word Pair -', iter, "Completed.")
+            epochLoss /= totalBatches
 
-        self.evaluateSplit("Validation", encoder, decoder, criterion)
-        self.evaluateSplit("Test", encoder, decoder, criterion)
+            print('Loss For Epoch ' + str(epoch + 1) + '/' + str(self.epochs) + ' : ' + str(epochLoss) + '\n')
+
+            # print(' Train Accuracy :', self.evaluate(trainLoader, encoder, decoder))
+            print(' Validation Accuracy :', self.evaluate(validLoader, encoder, decoder))
 
         # Plot the list 
         self.showPlot(plot_losses)
@@ -196,7 +192,104 @@ class Training :
         plt.plot(points)
         # plt.show()
 
-    def evaluateWord(self, encoder, decoder, sourceWord, targetWord, criterion) :
+    def evaluate(self, loader, encoder, decoder) :
+    
+        batchSize = self.dataProcessor.batchSize
+        device = self.dataProcessor.device
+        maxLengthWord = self.dataProcessor.maxLengthWord 
+        
+        totalWords = 0
+        correctWords = 0
+        batchNumber = 1
+        totalBatches = len(loader.sampler) // batchSize
+            
+        for sourceTensor, targetTensor in loader:
+            
+            source_tensor = Variable(sourceTensor.transpose(0, 1))
+            target_tensor = Variable( targetTensor.transpose(0, 1))
+            
+            # Get source length
+            source_length = source_tensor.size()[0]
+            target_length = target_tensor.size()[0]
+            output = torch.LongTensor(target_length, batchSize)
+
+            # Initialize initial hidden state of encoder
+            encoder_hidden = encoder.initHidden()
+
+            if self.dataProcessor.cellType == "LSTM":
+                encoder_cell_state = encoder.initHidden()
+                encoder_hidden = (encoder_hidden,encoder_cell_state)
+    
+            if self.attention:
+                encoder_outputs = torch.zeros(maxLengthWord + 1, batchSize, encoder.hiddenSize, device = device)
+
+            for ei in range(source_length):
+                encoder_output, encoder_hidden = encoder(source_tensor[ei],encoder_hidden)
+
+                if self.attention :
+                    # encoderOutputs[sourceIndex] = encoderOutput[0] # ? Other Code
+                    encoder_outputs[ei] = encoder_output[0]
+
+            # Initialize input to decoder with start of word token
+            decoder_input = torch.tensor([[self.dataProcessor.SOW2Int] * batchSize], device = device)
+
+            # initial hidden state for decoder will be final hidden state of encoder
+            decoder_hidden = encoder_hidden
+
+            if self.attention :
+                decoderAttentions = torch.zeros(self.maxLengthTensor, self.maxLengthTensor)
+            
+            for di in range(target_length):
+
+                if self.attention :
+                    decoder_output, decoder_hidden, decoderAttention = decoder(decoder_input, decoder_hidden, encoder_outputs)
+                    decoderAttentions[di] = decoderAttention.data
+
+                else : 
+                    # Pass the decoder_input, decoder_hidden and encoderOutputs to the decoder
+                    decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)
+                
+                topv, topi = decoder_output.data.topk(1)
+                decoder_input = torch.cat(tuple(topi))
+                output[di] = torch.cat(tuple(topi))
+
+            if False :
+                plt.matshow(decoderAttentions[:di + 1].numpy())
+
+            output = output.transpose(0,1)
+            
+            for di in range(output.size()[0]):
+                ignore = [self.dataProcessor.SOW2Int, self.dataProcessor.EOW2Int, self.dataProcessor.PAD2Int]
+                predicted = [letter.item() for letter in output[di] if letter not in ignore]
+                actual = [letter.item() for letter in  targetTensor[di] if letter not in ignore]
+                # print("predicted:",predicted)
+                # print("=actual:",actual)
+                if predicted == actual:
+                    correctWords += 1
+                totalWords += 1
+            print("Evaluate Batch : " + str(batchNumber) + "/" + str(totalBatches))
+            batchNumber+=1
+        # print('accuracy '+ str((correct/total)*100))
+        return (correctWords/totalWords)*100
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def evaluateBatch(self, sourceTensor, targetTensor, encoder, decoder, criterion) :
 
         '''
         Input :
@@ -206,13 +299,13 @@ class Training :
                 maxLength : TODO
         '''
 
+        loss = 0
+        correctWords = 0
+
         with torch.no_grad():
 
-            # Create tensor for source word
-            sourceTensor = self.dataProcessor.tensorFromWord(self.dataProcessor.sourceCharToInt, sourceWord, "source")
-
-            # Create tensor for target word
-            targetTensor = self.dataProcessor.tensorFromWord(self.dataProcessor.targetCharToInt, targetWord, "target")
+            sourceTensor = sourceTensor.squeeze()
+            targetTensor = targetTensor.squeeze()
 
             # Length of Source Tensor
             sourceTensorLength = sourceTensor.size()[0]
@@ -228,7 +321,9 @@ class Training :
                 encoderHidden = (encoderHidden, encoderCell)
 
             if self.attention :
-                encoderOutputs = torch.zeros(self.maxLengthTensor, encoder.hiddenSize, device = self.dataProcessor.device)
+                encoderOutputs = torch.zeros(self.maxLengthTensor, self.dataProcessor.batchSize, encoder.hiddenSize, device = self.dataProcessor.device)
+
+            output = torch.LongTensor(targetTensorLength, self.dataProcessor.batchSize)
 
             # Iterate over the sourceTensor
             for sourceIndex in range(sourceTensorLength) :
@@ -239,24 +334,19 @@ class Training :
                 if self.attention : 
                     
                     # Stores the encoder output for current source character in encoderOutputs
-                    encoderOutputs[sourceIndex] += encoderOutput[0, 0]
+                    # encoderOutputs[sourceIndex] = encoderOutput[0] # ? Other Code
+                    encoderOutputs[sourceIndex] = encoderOutput[0]
 
             # Give SOW (Start of Word) as Decoder Input
-            decoderInput = torch.tensor([[self.dataProcessor.SOW2Int]], device = self.dataProcessor.device)  
-            
+            decoderInput = torch.tensor([[self.dataProcessor.SOW2Int] * self.batchSize], device = self.dataProcessor.device)
+
             # The hidden state input to decoder is the final hidden state output of encoder
             decoderHidden = encoderHidden
-
-            # List of decoded characters
-            decodedCharacters = []
 
             if self.attention :
                 decoderAttentions = torch.zeros(self.maxLengthTensor, self.maxLengthTensor)
 
-            loss = 0
-
-            # Iterate till we get EOW
-            for di in range(self.maxLengthTensor):
+            for targetIndex in range(targetTensorLength):
                 
                 if self.attention :
                     decoderOutput, decoderHidden, decoderAttention = decoder(decoderInput, decoderHidden, encoderOutputs)
@@ -266,50 +356,47 @@ class Training :
                     decoderOutput, decoderHidden = decoder(decoderInput, decoderHidden)
                 
                 if self.attention :
-                    decoderAttentions[di] = decoderAttention.data
+                    decoderAttentions[targetIndex] = decoderAttention.data
                 
                 # Since the output of decoder is softmax, we want the value and index of maximum probability
                 topv, topi = decoderOutput.data.topk(1)
-                
-                # EOW
-                if topi.item() == self.dataProcessor.EOW2Int:
-                    break
-                
-                else:
-
-                    # Add the unique index of character in target language
-                    decodedCharacters.append(self.dataProcessor.targetIntToChar[topi.item()])
-
-                if di < targetTensorLength : 
-                    loss += criterion(decoderOutput, targetTensor[di])
+                loss += criterion(decoderOutput, targetTensor[targetIndex])
 
                 # Squeeze removes all dimensions that are 1 from tensor
                 # Detach creates a new tensor that is not the part of history graph
                 decoderInput = topi.squeeze().detach()
+                output[targetIndex] = decoderInput
 
             if False :
                 plt.matshow(decoderAttentions[:di + 1].numpy())
 
-            # If length of predicted word is not the same as target word, return loss and correctWord = 0
-            if(len(decodedCharacters) == len(targetWord)) :
-                return loss.item() / targetTensorLength , 0
+            output = output.transpose(0, 1)
+            print(output.shape)
+
+            print("OUTPUT SIZE : ", output.size()[0])
+            for batchNumber in range(output.size()[0]) :
+                ignore = [self.dataProcessor.SOW2Int, self.dataProcessor.EOW2Int, self.dataProcessor.PAD2Int]
+                predicted = [self.dataProcessor.targetIntToChar[letter.item()] for letter in output[batchNumber] if letter not in ignore]
+
+                print("Length of target tensor : ", targetTensor[batchNumber].shape)
+                actual = [self.dataProcessor.targetIntToChar[letter.item()] for letter in targetTensor[batchNumber] if letter not in ignore]
+
+                if predicted == actual :
+                    correctWords += 1
             
-            # If length of predicted word is the same as target word, iterate over each character and return correctWord = 0 if a character is not matching
-            for i in range(len(decodedCharacters)) :
-                if(decodedCharacters[i] != targetWord[i]) :
-                    return loss.item() / targetTensorLength , 0
-                
             # Return loss and correctWord = 1
-            return loss.item() / targetTensorLength , 1
+            return loss.item() / targetTensorLength , correctWords
         
     def evaluateSplit(self, split, encoder, decoder, criterion) :
         
         # List of tuple of source words and train target words
         if split.lower() == "validation" :
-            pairs = self.dataProcessor.createValidPairs()
+            tensorPairs = self.dataProcessor.validTensorPairs
 
         else :
-            pairs = self.dataProcessor.createTestPairs()
+            tensorPairs = self.dataProcessor.testTensorPairs
+
+        loader = DataLoader(tensorPairs, batch_size = self.batchSize, shuffle = True)
 
         # Initialize Total Loss for Validation Data
         totalLoss = 0
@@ -317,26 +404,25 @@ class Training :
         # Initialize Number of Correct Words
         correctWords = 0
 
-        # Accumulate Loss and Correct Word Count for all Words
-        for i in range(len(pairs)) :
+        batchNumber = 0
+        totalBatches = len(tensorPairs) // self.batchSize
 
-            wordLoss, isCorrectWord = self.evaluateWord(encoder, decoder, pairs[i][0], pairs[i][1], criterion)
-            
-            totalLoss += wordLoss
-            correctWords += isCorrectWord
+        for sourceTensor, targetTensor in loader :
 
-            if i % (len(pairs) // 10) == 0 :
-                print(split, "Data Evaluated :", i, "/", len(pairs))
+            sourceTensor = sourceTensor.transpose(0, 1)
+            targetTensor = targetTensor.transpose(0, 1)
 
-        # Calculate Average Valid Loss
-        avgValidLoss = totalLoss / len(pairs)
+            batchLoss, correctWordsBatch = self.evaluateBatch(sourceTensor, targetTensor, encoder, decoder, criterion)
 
-        # Calculate Accuracy 
-        accuracy = correctWords / len(pairs)
+            totalLoss += batchLoss
+            correctWords += correctWordsBatch
+            batchNumber += 1
 
-        print(split, "Loss :", avgValidLoss)
+        avgLoss = totalLoss / totalBatches
+        accuracy = correctWords / len(tensorPairs)
+
+        print(split, "Loss :", avgLoss)
         print(split, "Accuracy :", accuracy)
-        return avgValidLoss
 
+        return avgLoss, accuracy
 
-        

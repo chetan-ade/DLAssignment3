@@ -5,7 +5,7 @@ import torch
 
 class DataProcessing():
 
-    def __init__(self, DATAPATH, targetLanguage, configs) :
+    def __init__(self, DATAPATH, targetLanguage, device) :
 
         ''' Data PreProcessor to compute Encoder Decoder Input. 
 
@@ -20,14 +20,8 @@ class DataProcessing():
                             Target Integer to Character '''
     
         # Store device
-        self.device = configs['device']
+        self.device = device
         
-        # Store cellType
-        self.cellType = configs['cellType']
-
-        # Store Attention Flag
-        self.attention = configs['attention']
-
         # Start Of Word Token
         self.SOW = '>'
         self.SOW2Int = 0
@@ -68,6 +62,37 @@ class DataProcessing():
         # Once the dictionaries have been populated, store use them for further use
         self.sourceCharToInt, self.sourceIntToChar = self.sourceVocab
         self.targetCharToInt, self.targetIntToChar = self.targetVocab
+
+        self.trainPairs = list(zip(self.train["source"].to_list(), self.train["target"].to_list()))
+        self.validPairs = list(zip(self.valid["source"].to_list(), self.valid["target"].to_list()))
+        self.testPairs = list(zip(self.test["source"].to_list(), self.test["target"].to_list()))
+
+        self.trainingTensorPairs = []
+        for trainPair in self.trainPairs :
+            self.trainingTensorPairs.append(self.tensorsFromPair(trainPair))
+
+        self.validTensorPairs = []
+        for validPair in self.validPairs :
+            self.validTensorPairs.append(self.tensorsFromPair(validPair))
+
+        self.testTensorPairs = []
+        for testPair in self.testPairs :
+            self.testTensorPairs.append(self.tensorsFromPair(testPair))
+
+    def updateConfigs(self, configs) :
+
+        # Store cellType
+        self.cellType = configs['cellType']
+
+        # Store Attention Flag
+        self.attention = configs['attention']
+
+        # Store batch size
+        self.batchSize = configs['batchSize']
+
+        self.epochs = configs['epochs']
+
+        self.learningRate = configs['learningRate']
 
     def dictionaryLookup(self, languageCharacters) :
         
@@ -152,6 +177,8 @@ class DataProcessing():
         self.maxSourceLengthWord = max([self.maxSourceLengthWord, valSourceMax, testSourceMax])
         self.maxTargetLengthWord = max([self.maxTargetLengthWord, valTargetMax, testTargetMax])
 
+        self.maxLengthWord = max(self.maxSourceLengthWord, self.maxTargetLengthWord)
+
         # Number of Pairs in Train Data
         self.numTrainPairs = len(source)
 
@@ -167,7 +194,7 @@ class DataProcessing():
 
         return sourceVocab, targetVocab
 
-    def tensorFromWord(self, charToInt, word, language) :
+    def tensorFromWord(self, charToInt, word) :
 
         ''' Input ->    charToInt : Dictionary that contains the mapping of character to its unique integer.
                         word : Word of which the tensor is to be created.    
@@ -192,11 +219,7 @@ class DataProcessing():
         indexes.append(self.EOW2Int)
 
         # Add Padding after EOW 
-        if language == "source" :
-            indexes.extend([self.PAD2Int for i in range(self.maxSourceLengthWord - len(indexes) + 1)])
-
-        else :
-            indexes.extend([self.PAD2Int for i in range(self.maxTargetLengthWord - len(indexes) + 1)])
+        indexes.extend([self.PAD2Int] * (self.maxLengthWord - len(indexes) + 1))
 
         return torch.tensor(indexes, dtype = torch.long, device = self.device).view(-1, 1)
 
@@ -207,34 +230,7 @@ class DataProcessing():
             Output ->   Creates a tensor for source language word and target language word
                         Returns a pair of the two tensors created. '''
 
-        sourceTensor = self.tensorFromWord(self.sourceCharToInt, pairOfWords[0], "source")
-        targetTensor = self.tensorFromWord(self.targetCharToInt, pairOfWords[1], "target")
+        sourceTensor = self.tensorFromWord(self.sourceCharToInt, pairOfWords[0])
+        targetTensor = self.tensorFromWord(self.targetCharToInt, pairOfWords[1])
 
         return (sourceTensor, targetTensor)
-
-    def createTrainPairs(self) :
-
-        ''' Input ->    N/A   
-            Output ->   Returns a List of Tuples where each tuple contains a source word and its corresponding target word. '''
-        
-        return list(zip(self.train["source"].to_list(), self.train["target"].to_list()))
-    
-    def createValidPairs(self) :
-
-        ''' Input ->    N/A   
-            Output ->   Returns a List of Tuples where each tuple contains a source word and its corresponding target word. '''
-        
-        return list(zip(self.valid["source"].to_list(), self.valid["target"].to_list()))
-    
-    def createTestPairs(self) :
-
-        ''' Input ->    N/A   
-            Output ->   Returns a List of Tuples where each tuple contains a source word and its corresponding target word. '''
-        
-        return list(zip(self.test["source"].to_list(), self.test["target"].to_list()))
-    
-    def getMaxLengthWord(self) :
-        
-        ''' Returns the maximum of sourceMaxLength and targetMaxLength '''
-
-        return max(self.maxSourceLengthWord, self.maxTargetLengthWord)

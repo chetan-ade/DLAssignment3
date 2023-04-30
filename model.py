@@ -32,25 +32,27 @@ class Encoder(nn.Module) :
         self.device = configs['device']
         self.numLayersEncoderDecoder = configs['numLayersEncoderDecoder']
         self.dropout = configs['dropout']
+        self.batchSize = configs['batchSize']
+        self.bidirectional = configs['bidirectional']
 
         # Create an Embedding for the Input # Each character will have an embedding of size = hiddenSize
         self.embedding = nn.Embedding(num_embeddings = inputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer # Since the input is embedded input, we have the first parameter as hiddenSize # We are setting the size of hidden state also as hiddenSize
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
         elif self.cellType == 'RNN' : 
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
     # Encoder Forward Pass
     def forward(self, input, hidden) :
 
         # Pass the Input through the Embedding layer to get embedded input # The embedded input is reshaped to have a shape of (1, 1, -1)
-        embedded = self.embedding(input).view(1, 1, -1)
+        embedded = self.embedding(input).view(1, self.batchSize, -1)
         output = embedded
 
         # Pass the embedded input to the RNN / GRU Layer
@@ -62,14 +64,28 @@ class Encoder(nn.Module) :
     # Encoder Hidden State Initialization
     def initHidden(self) :
 
-        # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
-        return torch.zeros(self.numLayersEncoderDecoder, 1, self.hiddenSize, device = self.device)
+        if self.bidirectional :
+
+            # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
+            return torch.zeros(self.numLayersEncoderDecoder * 2, self.batchSize, self.hiddenSize, device = self.device)
+        
+        else :
+
+            # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
+            return torch.zeros(self.numLayersEncoderDecoder, self.batchSize, self.hiddenSize, device = self.device)
     
     # Encoder Hidden Cell Initialization
     def initCell(self) :
 
-        # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
-        return torch.zeros(self.numLayersEncoderDecoder, 1, self.hiddenSize, device = self.device)
+        if self.bidirectional :
+
+            # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
+            return torch.zeros(self.numLayersEncoderDecoder * 2, self.batchSize, self.hiddenSize, device = self.device)
+        
+        else :
+
+            # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
+            return torch.zeros(self.numLayersEncoderDecoder, self.batchSize, self.hiddenSize, device = self.device)
     
 class Decoder(nn.Module) :
 
@@ -95,22 +111,28 @@ class Decoder(nn.Module) :
         self.device = configs['device'] 
         self.numLayersEncoderDecoder = configs['numLayersEncoderDecoder']
         self.dropout = configs['dropout']
+        self.batchSize = configs['batchSize']
+        self.bidirectional = configs['bidirectional']
 
         # Create an Embedding for the Input
         self.embedding = nn.Embedding(num_embeddings = outputSize, embedding_dim = self.embeddingSize)
 
         # The RNN / LSTM / GRU Layer
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
         elif self.cellType == 'RNN' :
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
         
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
-        self.out = nn.Linear(self.hiddenSize, outputSize)
+        if self.bidirectional:
+            self.out = nn.Linear(2 * self.hiddenSize, outputSize)
+
+        else :
+            self.out = nn.Linear(self.hiddenSize, outputSize)
 
         # SoftMax Layer for the final output
         self.softmax = nn.LogSoftmax(dim = 1)
@@ -119,7 +141,7 @@ class Decoder(nn.Module) :
     def forward(self, input, hidden) :
 
         # Pass the Input through the Embedding layer to get embedded input # The embedded input is reshaped to have a shape of (1, 1, -1)
-        output = self.embedding(input).view(1, 1, -1)
+        output = self.embedding(input).view(1, self.batchSize, -1)
 
         # Pass the embedded input through relu
         output = F.relu(output)
@@ -159,6 +181,8 @@ class DecoderAttention(nn.Module) :
         self.dropoutRate = configs['dropout']
         self.maxLengthWord = configs['maxLengthWord']
         self.maxLengthTensor = self.maxLengthWord + 1
+        self.batchSize = configs['batchSize']
+        self.bidirectional = configs['bidirectional']
 
         # Create an Embedding for the Input
         self.embedding = nn.Embedding(num_embeddings = outputSize, embedding_dim = self.embeddingSize)
@@ -174,37 +198,64 @@ class DecoderAttention(nn.Module) :
 
         # The RNN / LSTM / GRU Layer
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropoutRate)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropoutRate, bidirectional = self.bidirectional)
 
         elif self.cellType == 'RNN' :
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropoutRate)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropoutRate, bidirectional = self.bidirectional)
         
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropoutRate)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropoutRate, bidirectional = self.bidirectional)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
-        self.out = nn.Linear(self.hiddenSize, outputSize)
+        if self.bidirectional:
+            self.out = nn.Linear(2 * self.hiddenSize, outputSize)
+
+        else :
+            self.out = nn.Linear(self.hiddenSize, outputSize)
 
     # Decoder Forward Pass
     def forward(self, input, hidden, encoder_outputs) :
 
+        print("INPUT :", input.shape)
+        print("HIDDEN[0] :", hidden[0].shape)
+        print("ENC_OP :", encoder_outputs.shape)
+
         # Pass the Input through the Embedding layer to get embedded input # The embedded input is reshaped to have a shape of (1, 1, -1)
-        embedded = self.embedding(input).view(1, 1, -1)
+        embedded = self.embedding(input).view(1, self.batchSize, -1)
 
         # Dropout embedded layer according to dropout probability
         embedded = self.dropout(embedded)
 
+        print("EMBEDDED : ", embedded.shape)
+        print("EMBEDDED[0] : ", embedded[0].shape)
+        print("HIDDEN[0][0] : ", hidden[0][0].shape)
+        
+
         if self.cellType == 'LSTM' :
 
             # Calculate Attention Weights
-            attentionWeights = F.softmax(self.attentionLayer(torch.cat((embedded[0], hidden[0][0]), 1)), dim = 1)
+
+            embeddedHidden = torch.cat((embedded[0], hidden[0][0]), 1)
+            print("EMBEDDED HIDDEN : ", embeddedHidden.shape)
+
+            embeddedHiddenAttention = self.attentionLayer(embeddedHidden)
+            print("EMBEDDED HIDDEN ATTENTION : ", embeddedHiddenAttention.shape)
+
+            attentionWeights = F.softmax(embeddedHiddenAttention, dim = 1)
         
         else :
 
             # Calculate Attention Weights
             attentionWeights = F.softmax(self.attentionLayer(torch.cat((embedded[0], hidden[0]), 1)), dim = 1)
 
+        
         # Batch matrix-matrix product of attention weights with encoder outputs
+        print(attentionWeights.shape)
+        print(encoder_outputs.shape)
+
+        print(attentionWeights.unsqueeze(0).shape)
+        print(encoder_outputs.unsqueeze(0).shape)
+        
         attentionApplied = torch.bmm(attentionWeights.unsqueeze(0), encoder_outputs.unsqueeze(0))
 
         # Concatenate Embedded Output and product of batch matrix matrix multiplication

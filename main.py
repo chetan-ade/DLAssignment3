@@ -2,6 +2,7 @@
 
 from __future__ import unicode_literals, print_function, division
 import torch
+import time
 
 ''' Import files with User Defined Classes. '''
 
@@ -9,83 +10,91 @@ import model
 from dataProcessing import DataProcessing
 from trainModel import Training
 
-def trainForConfigs(configs) :
+def trainForConfigs(configs, dataProcessor) :
+
+    ''' Trains Encoder Decoder Model for given configs and processed data. '''
     
-    # Print the configurations
-    print('CONFIGS')
+    print('CONFIGS')    # Print the configurations
     for parameters in configs.items() :
         print(parameters)
 
-    # Pre-Process the data
-    dataProcessor = DataProcessing(DATAPATH = 'aksharantar_sampled', targetLanguage = 'hin', configs = configs)
+    configs['maxLengthWord'] = dataProcessor.maxLengthWord # Store max length in configs for later use
 
-    # Add max length to the configs
-    configs['maxLengthWord'] = dataProcessor.getMaxLengthWord()
+    dataProcessor.updateConfigs(configs) # Update configs in data processor
     
-    # Create an encoder object with inputSize = number of characters in source language and hiddenSize
-    encoder = model.Encoder(inputSize = dataProcessor.numEncoderTokens, configs = configs).to(configs['device'])
-
+    encoder = model.Encoder(inputSize = dataProcessor.numEncoderTokens, configs = configs).to(configs['device']) # Create an encoder object
+    
+    # Create a decoder object
     if configs['attention'] :
-        # Create a decoder object with hiddenSie and outputSize = number of characters in target language
         decoder = model.DecoderAttention(outputSize = dataProcessor.numDecoderTokens, configs = configs).to(configs['device'])
-
     else :
-        # Create a decoder object with hiddenSie and outputSize = number of characters in target language
         decoder = model.Decoder(outputSize = dataProcessor.numDecoderTokens, configs = configs).to(configs['device'])
     
-    # Create a model Training object with the data Processor
-    modelTraining = Training(dataProcessor)
+    modelTraining = Training(dataProcessor) # Create a modelTraining object
     
-    # Train the Encoder Decoder Model 
-    modelTraining.trainIters(encoder, decoder, nIters = dataProcessor.numTrainPairs // 50, printEvery = dataProcessor.numTrainPairs // 500, plotEvery = dataProcessor.numTrainPairs // 5000)
+    startTime = time.time()
+
+    modelTraining.train(encoder, decoder) # Train the Encoder Decoder Model 
+
+    print("TIME : ", (time.time() - startTime) / 60)
+
+def trainConfigsGrid(device, dataProcessor) :
+    
+    f = open("log.txt", 'w') # Write Status of Configs in a File for Debugging
+
+    for cell in ['LSTM', 'RNN', 'GRU'] :
+        for attentionFlag in [False] :
+            for bidirectional in [True, False] :
+                for numLayers in [1, 3] :
+
+                    try :
+
+                        configs = { # Create a configuration dictionary
+        
+                            'device'                    : device,  # Available Device (CPU / CUDA) 
+                            'hiddenSize'                : 64,     # Hidden Size in RNN Layer
+                            'cellType'                  : cell,   # Cell Type = ['RNN', 'GRU', 'LSTM']
+                            'embeddingSize'             : 256,     # Embedding Size for each character
+                            'numLayersEncoderDecoder'   : numLayers,       # Number of RNN Layers in Encoder / Decoder
+                            'dropout'                   : 0,       # Dropout Probability
+                            'attention'                 : attentionFlag,   # True = AttentionDecoder, False = Decoder
+                            'batchSize'                 : 512,      # Batch Size for Training and Evaluating
+                            'epochs'                    : 2,       # Total Number of Training Epochs
+                            'bidirectional'             : bidirectional,
+                            'learningRate'              : 0.001
+
+                        }
+
+                        trainForConfigs(configs, dataProcessor) # Train for configurations
+                        f.write('SUCCESS : ' + str(configs) + "\n")
+
+                    except Exception :
+                        
+                        f.write('Error in CONFIGS : ' + str(configs) + "\n") # Write Configs in File
+                 
+    f.close()
     
 if __name__ == "__main__" :
 
-    f = open("log.txt", 'w')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    configs = { # Create a configuration dictionary
+    
+        'device'                    : device,  # Available Device (CPU / CUDA) 
+        'hiddenSize'                : 64,     # Hidden Size in RNN Layer
+        'cellType'                  : "LSTM",   # Cell Type = ['RNN', 'GRU', 'LSTM']
+        'embeddingSize'             : 256,     # Embedding Size for each character
+        'numLayersEncoderDecoder'   : 3,       # Number of RNN Layers in Encoder / Decoder
+        'dropout'                   : 0,       # Dropout Probability
+        'attention'                 : False,   # True = AttentionDecoder, False = Decoder
+        'batchSize'                 : 512,      # Batch Size for Training and Evaluating
+        'epochs'                    : 2,       # Total Number of Training Epochs
+        'bidirectional'             : True,
+        'learningRate'              : 0.001
 
-    for cell in ['LSTM', 'RNN', 'GRU'] :
-        for attentionFlag in [True, False] :
-            for numLayers in [1, 2] :
+    }
 
-                try :
-
-                    # Create a configuration dictionary
-                    configs = {
-
-                        'device'                    : torch.device("cuda" if torch.cuda.is_available() else "cpu"),     # Set device to gpu if available, else set device to cpu 
-                        'hiddenSize'                : 128,                                                              # Hidden Size in RNN Layer
-                        'cellType'                  : cell,                                                           # Cell Type = ['RNN', 'GRU', 'LSTM]
-                        'embeddingSize'             : 128,                                                              # Embedding Size for each character
-                        'numLayersEncoderDecoder'   : numLayers,                                                                # Number of RNN Layers in Encoder / Decoder
-                        'dropout'                   : 0,                                                                # Dropout Probability
-                        'attention'                 : attentionFlag                                                             # True = AttentionDecoder , False = Decoder
-
-                    }
-
-                    trainForConfigs(configs)
-                    f.write('SUCCESS!\n')
-
-                except Exception :
-                    
-                    # Print the configurations
-                    f.write('Error in CONFIGS : ' + str(cell) + " " + str(attentionFlag) + " " +  str(numLayers) + str(Exception) + "\n")
-
-    f.close()
-
-    # # Create a configuration dictionary
-    # configs = {
-
-    #     'device'                    : torch.device("cuda" if torch.cuda.is_available() else "cpu"),     # Set device to gpu if available, else set device to cpu 
-    #     'hiddenSize'                : 128,                                                              # Hidden Size in RNN Layer
-    #     'cellType'                  : "LSTM",                                                           # Cell Type = ['RNN', 'GRU', 'LSTM]
-    #     'embeddingSize'             : 128,                                                              # Embedding Size for each character
-    #     'numLayersEncoderDecoder'   : 1,                                                                # Number of RNN Layers in Encoder / Decoder
-    #     'dropout'                   : 0,                                                                # Dropout Probability
-    #     'attention'                 : False                                                             # True = AttentionDecoder , False = Decoder
-
-    # }
-
-    # trainForConfigs(configs)
+    # trainForConfigs(configs, dataProcessor) # Train for configurations
                     
     
 

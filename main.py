@@ -2,7 +2,6 @@
 
 from __future__ import unicode_literals, print_function, division
 import torch
-import time
 
 ''' Import files with User Defined Classes. '''
 
@@ -12,11 +11,10 @@ from trainModel import Training
 
 def trainForConfigs(configs, dataProcessor) :
 
-    ''' Trains Encoder Decoder Model for given configs and processed data. '''
-    
-    print('CONFIGS')    # Print the configurations
-    for parameters in configs.items() :
-        print(parameters)
+    ''' Train Model for given configs and processed data. '''
+
+    for parameter in configs.items() :
+        print(parameter) # Print the configurations
 
     configs['maxLengthWord'] = dataProcessor.maxLengthWord # Store max length in configs for later use
 
@@ -30,15 +28,13 @@ def trainForConfigs(configs, dataProcessor) :
     else :
         decoder = model.Decoder(outputSize = dataProcessor.numDecoderTokens, configs = configs).to(configs['device'])
     
-    modelTraining = Training(dataProcessor) # Create a modelTraining object
-    
-    startTime = time.time()
+    modelTraining = Training(dataProcessor, encoder, decoder) # Create a modelTraining object
 
-    modelTraining.train(encoder, decoder) # Train the Encoder Decoder Model 
-
-    print("TIME : ", (time.time() - startTime) / 60)
+    modelTraining.train() # Train the Encoder Decoder Model 
 
 def trainConfigsGrid(device, dataProcessor) :
+
+    ''' Trains model for all mentioned combinations '''
     
     f = open("log.txt", 'w') # Write Status of Configs in a File for Debugging
 
@@ -50,17 +46,17 @@ def trainConfigsGrid(device, dataProcessor) :
                     try :
 
                         configs = { # Create a configuration dictionary
-        
+    
                             'device'                    : device,  # Available Device (CPU / CUDA) 
-                            'hiddenSize'                : 64,     # Hidden Size in RNN Layer
-                            'cellType'                  : cell,   # Cell Type = ['RNN', 'GRU', 'LSTM']
+                            'hiddenSize'                : 256,     # Hidden Size in RNN Layer
+                            'cellType'                  : "LSTM",   # Cell Type = ['RNN', 'GRU', 'LSTM']
                             'embeddingSize'             : 256,     # Embedding Size for each character
-                            'numLayersEncoderDecoder'   : numLayers,       # Number of RNN Layers in Encoder / Decoder
-                            'dropout'                   : 0,       # Dropout Probability
-                            'attention'                 : attentionFlag,   # True = AttentionDecoder, False = Decoder
-                            'batchSize'                 : 512,      # Batch Size for Training and Evaluating
-                            'epochs'                    : 2,       # Total Number of Training Epochs
-                            'bidirectional'             : bidirectional,
+                            'numLayersEncoderDecoder'   : 2,       # Number of RNN Layers in Encoder / Decoder
+                            'dropout'                   : 0.2,       # Dropout Probability
+                            'attention'                 : False,   # True = AttentionDecoder, False = Decoder
+                            'batchSize'                 : 32,      # Batch Size for Training and Evaluating
+                            'epochs'                    : 10,       # Total Number of Training Epochs
+                            'bidirectional'             : True,
                             'learningRate'              : 0.001
 
                         }
@@ -81,17 +77,17 @@ if __name__ == "__main__" :
 
     configs = { # Create a configuration dictionary
     
-        'device'                    : device,  # Available Device (CPU / CUDA) 
-        'hiddenSize'                : 256,     # Hidden Size in RNN Layer
-        'cellType'                  : "LSTM",   # Cell Type = ['RNN', 'GRU', 'LSTM']
-        'embeddingSize'             : 256,     # Embedding Size for each character
-        'numLayersEncoderDecoder'   : 2,       # Number of RNN Layers in Encoder / Decoder
-        'dropout'                   : 0.2,       # Dropout Probability
-        'attention'                 : False,   # True = AttentionDecoder, False = Decoder
-        'batchSize'                 : 32,      # Batch Size for Training and Evaluating
+        'device'                    : device,   # Available Device (CPU / CUDA) 
+        'hiddenSize'                : 64,      # Hidden Size in RNN Layer
+        'cellType'                  : "GRU",   # Cell Type = ['RNN', 'GRU', 'LSTM']
+        'embeddingSize'             : 256,      # Embedding Size for each character
+        'numLayersEncoderDecoder'   : 2,        # Number of RNN Layers in Encoder / Decoder
+        'dropout'                   : 0.2,      # Dropout Probability
+        'attention'                 : True,    # True = AttentionDecoder, False = Decoder
+        'batchSize'                 : 32,       # Batch Size for Training and Evaluating
         'epochs'                    : 10,       # Total Number of Training Epochs
-        'bidirectional'             : True,
-        'learningRate'              : 0.001
+        'bidirectional'             : False,     # Bidirectional Flag
+        'learningRate'              : 0.001     # Learning Rate for Optimizers
 
     }
 

@@ -9,22 +9,8 @@ class Encoder(nn.Module) :
     # Encoder Constructor
     def __init__(self, inputSize, configs) :
 
-        ''' The encoder of a seq2seq network is a RNN that outputs some value for every character from the input word. 
-            For every input character the encoder outputs a vector and a hidden state, and uses the hidden state for the next input character.
-            
-            INPUT :     inputSize  : Number of Characters in Source Language.
-                        hiddenSize : Size of embedding for each character,
-                                     Size of Input for GRU / RNN / LSTM,
-                                     Size of Hidden State for GRU / RNN / LSTM,
-                                     Size of Input for Dense Layer.
-                        device     : device on which tensors are stored
-                        cellType    : RNN / GRU / LSTM 
-  
-            OUTPUT :    Encoder Object '''
-
-        # Call the constructor for NN Module
-        super(Encoder, self).__init__()
-
+        super(Encoder, self).__init__() # Call the constructor for NN Module
+        
         # Store the parameters in class variables
         self.hiddenSize = configs['hiddenSize']
         self.embeddingSize = configs['embeddingSize']
@@ -35,17 +21,16 @@ class Encoder(nn.Module) :
         self.batchSize = configs['batchSize']
         self.bidirectional = configs['bidirectional']
 
-        # Create an Embedding for the Input # Each character will have an embedding of size = hiddenSize
-        self.embedding = nn.Embedding(num_embeddings = inputSize, embedding_dim = self.embeddingSize)
-
-        # The RNN / LSTM / GRU Layer # Since the input is embedded input, we have the first parameter as hiddenSize # We are setting the size of hidden state also as hiddenSize
+        self.embedding = nn.Embedding(num_embeddings = inputSize, embedding_dim = self.embeddingSize) # Create an Embedding for the Input # Each character will have an embedding of size = hiddenSize
+        
+        # Create cell layer
         if self.cellType == 'GRU' :
             self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
         elif self.cellType == 'RNN' : 
             self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
-        else : 
+        elif self.cellType == 'LSTM': 
             self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
     # Encoder Forward Pass
@@ -54,24 +39,17 @@ class Encoder(nn.Module) :
         # Pass the Input through the Embedding layer to get embedded input # The embedded input is reshaped to have a shape of (1, 1, -1)
         embedded = self.embedding(input).view(1, self.batchSize, -1)
         output = embedded
-
-        # Pass the embedded input to the RNN / GRU Layer
-        output, hidden = self.RNNLayer(output, hidden)
-
-        # Return the output of RNN / GRU Layer   
+        output, hidden = self.RNNLayer(output, hidden) # Pass the embedded input to the RNN / GRU Layer
+        
         return output, hidden
 
     # Encoder Hidden State Initialization
     def initHidden(self) :
 
         if self.bidirectional :
-
-            # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
             return torch.zeros(self.numLayersEncoderDecoder * 2, self.batchSize, self.hiddenSize, device = self.device)
         
         else :
-
-            # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
             return torch.zeros(self.numLayersEncoderDecoder, self.batchSize, self.hiddenSize, device = self.device)
     
     # Encoder Hidden Cell Initialization
@@ -216,9 +194,9 @@ class DecoderAttention(nn.Module) :
     # Decoder Forward Pass
     def forward(self, input, hidden, encoder_outputs) :
 
-        print("INPUT :", input.shape)
-        print("HIDDEN[0] :", hidden[0].shape)
-        print("ENC_OP :", encoder_outputs.shape)
+        # print("INPUT :", input.shape)
+        # print("HIDDEN[0] :", hidden[0].shape)
+        # print("ENC_OP :", encoder_outputs.shape)
 
         # Pass the Input through the Embedding layer to get embedded input # The embedded input is reshaped to have a shape of (1, 1, -1)
         embedded = self.embedding(input).view(1, self.batchSize, -1)
@@ -226,9 +204,9 @@ class DecoderAttention(nn.Module) :
         # Dropout embedded layer according to dropout probability
         embedded = self.dropout(embedded)
 
-        print("EMBEDDED : ", embedded.shape)
-        print("EMBEDDED[0] : ", embedded[0].shape)
-        print("HIDDEN[0][0] : ", hidden[0][0].shape)
+        # print("EMBEDDED : ", embedded.shape)
+        # print("EMBEDDED[0] : ", embedded[0].shape)
+        # print("HIDDEN[0][0] : ", hidden[0][0].shape)
         
 
         if self.cellType == 'LSTM' :
@@ -236,10 +214,10 @@ class DecoderAttention(nn.Module) :
             # Calculate Attention Weights
 
             embeddedHidden = torch.cat((embedded[0], hidden[0][0]), 1)
-            print("EMBEDDED HIDDEN : ", embeddedHidden.shape)
+            # print("EMBEDDED HIDDEN : ", embeddedHidden.shape)
 
             embeddedHiddenAttention = self.attentionLayer(embeddedHidden)
-            print("EMBEDDED HIDDEN ATTENTION : ", embeddedHiddenAttention.shape)
+            # print("EMBEDDED HIDDEN ATTENTION : ", embeddedHiddenAttention.shape)
 
             attentionWeights = F.softmax(embeddedHiddenAttention, dim = 1)
         
@@ -250,13 +228,14 @@ class DecoderAttention(nn.Module) :
 
         
         # Batch matrix-matrix product of attention weights with encoder outputs
-        print(attentionWeights.shape)
-        print(encoder_outputs.shape)
+        # print(attentionWeights.shape)
+        # print(encoder_outputs.shape)
 
-        print(attentionWeights.unsqueeze(0).shape)
-        print(encoder_outputs.unsqueeze(0).shape)
+        # print(attentionWeights.unsqueeze(0).shape)
+        # print(encoder_outputs.unsqueeze(0).shape)
         
-        attentionApplied = torch.bmm(attentionWeights.unsqueeze(0), encoder_outputs.unsqueeze(0))
+        # attentionApplied = torch.bmm(attentionWeights.unsqueeze(0), encoder_outputs.unsqueeze(0))
+        attentionApplied = torch.bmm(attentionWeights.view(self.batchSize, 1, self.maxLengthTensor), encoder_outputs).view(1, self.batchSize, -1)
 
         # Concatenate Embedded Output and product of batch matrix matrix multiplication
         output = torch.cat((embedded[0], attentionApplied[0]), 1)

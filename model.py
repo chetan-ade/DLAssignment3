@@ -16,7 +16,7 @@ class Encoder(nn.Module) :
         self.embeddingSize = configs['embeddingSize']
         self.cellType = configs['cellType']
         self.device = configs['device']
-        self.numLayersEncoderDecoder = configs['numLayersEncoderDecoder']
+        self.numLayersEncoder = configs['numLayersEncoder']
         self.dropout = configs['dropout']
         self.batchSize = configs['batchSize']
         self.bidirectional = configs['bidirectional']
@@ -25,13 +25,13 @@ class Encoder(nn.Module) :
         
         # Create cell layer
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
         elif self.cellType == 'RNN' : 
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
         elif self.cellType == 'LSTM': 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
     # Encoder Forward Pass
     def forward(self, input, hidden) :
@@ -47,10 +47,10 @@ class Encoder(nn.Module) :
     def initHidden(self) :
 
         if self.bidirectional :
-            return torch.zeros(self.numLayersEncoderDecoder * 2, self.batchSize, self.hiddenSize, device = self.device)
+            return torch.zeros(self.numLayersEncoder * 2, self.batchSize, self.hiddenSize, device = self.device)
         
         else :
-            return torch.zeros(self.numLayersEncoderDecoder, self.batchSize, self.hiddenSize, device = self.device)
+            return torch.zeros(self.numLayersEncoder, self.batchSize, self.hiddenSize, device = self.device)
     
     # Encoder Hidden Cell Initialization
     def initCell(self) :
@@ -58,12 +58,12 @@ class Encoder(nn.Module) :
         if self.bidirectional :
 
             # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
-            return torch.zeros(self.numLayersEncoderDecoder * 2, self.batchSize, self.hiddenSize, device = self.device)
+            return torch.zeros(self.numLayersEncoder * 2, self.batchSize, self.hiddenSize, device = self.device)
         
         else :
 
             # Returns a tensor of shape (1, 1, hiddenSize) and stores it on device # It is used while training for initialization
-            return torch.zeros(self.numLayersEncoderDecoder, self.batchSize, self.hiddenSize, device = self.device)
+            return torch.zeros(self.numLayersEncoder, self.batchSize, self.hiddenSize, device = self.device)
     
 class Decoder(nn.Module) :
 
@@ -87,7 +87,7 @@ class Decoder(nn.Module) :
         self.embeddingSize = configs['embeddingSize']
         self.cellType = configs['cellType']
         self.device = configs['device'] 
-        self.numLayersEncoderDecoder = configs['numLayersEncoderDecoder']
+        self.numLayersDecoder = configs['numLayersEncoder']
         self.dropout = configs['dropout']
         self.batchSize = configs['batchSize']
         self.bidirectional = configs['bidirectional']
@@ -97,13 +97,13 @@ class Decoder(nn.Module) :
 
         # The RNN / LSTM / GRU Layer
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
         elif self.cellType == 'RNN' :
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
         
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder, dropout = self.dropout, bidirectional = self.bidirectional)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
         if self.bidirectional:
@@ -155,7 +155,7 @@ class DecoderAttention(nn.Module) :
         self.embeddingSize = configs['embeddingSize']
         self.cellType = configs['cellType']
         self.device = configs['device'] 
-        self.numLayersEncoderDecoder = configs['numLayersEncoderDecoder']
+        self.numLayersDecoder = configs['numLayersEncoder']
         self.dropoutRate = configs['dropout']
         self.maxLengthWord = configs['maxLengthWord']
         self.maxLengthTensor = self.maxLengthWord + 1
@@ -176,13 +176,13 @@ class DecoderAttention(nn.Module) :
 
         # The RNN / LSTM / GRU Layer
         if self.cellType == 'GRU' :
-            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropoutRate, bidirectional = self.bidirectional)
+            self.RNNLayer = nn.GRU(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder, dropout = self.dropoutRate, bidirectional = self.bidirectional)
 
         elif self.cellType == 'RNN' :
-            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropoutRate, bidirectional = self.bidirectional)
+            self.RNNLayer = nn.RNN(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder, dropout = self.dropoutRate, bidirectional = self.bidirectional)
         
         else : 
-            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersEncoderDecoder, dropout = self.dropoutRate, bidirectional = self.bidirectional)
+            self.RNNLayer = nn.LSTM(self.embeddingSize, self.hiddenSize, num_layers = self.numLayersDecoder, dropout = self.dropoutRate, bidirectional = self.bidirectional)
 
         # Linear layer that will take GRU / RNN / LSTM output as input
         if self.bidirectional:

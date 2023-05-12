@@ -98,7 +98,7 @@ class Training :
 
         return loss.item() / targetTensorLength # Return average loss for each character in target word
 
-    def train(self):
+    def train(self, fromMain = False):
 
         encoder_optimizer = optim.NAdam(self.encoder.parameters(), lr = self.dataProcessor.learningRate)
         decoder_optimizer = optim.NAdam(self.decoder.parameters(), lr = self.dataProcessor.learningRate)
@@ -135,7 +135,8 @@ class Training :
             print('Validation Loss :', validationLoss)
             print('Validation Accuracy :', validationAccuracy, '%')
 
-            wandb.log({'train loss':epochLoss,'validation loss':validationLoss, 'validation accuracy':validationAccuracy})
+            if(not(fromMain)) :
+                wandb.log({'train loss':epochLoss,'validation loss':validationLoss, 'validation accuracy':validationAccuracy})
     
     def evaluate(self, loader) :
         
@@ -208,7 +209,7 @@ class Training :
             # Compute decoder outputs
             if self.attention :
                 decoderOutput, decoderHidden, decoderAttention = self.decoder(decoderInput, decoderHidden, encoderOutputs.reshape(self.batchSize, self.maxLengthTensor, self.encoder.hiddenSize))
-                decoderAttentions[di] = decoderAttention.data
+                # decoderAttentions[di] = decoderAttention.data
 
             else : 
                 decoderOutput, decoderHidden = self.decoder(decoderInput, decoderHidden)
@@ -220,9 +221,9 @@ class Training :
             decoderInput = torch.cat(tuple(topi))
             predictedBatchOutput[di] = torch.cat(tuple(topi))
 
-        if self.attention :
+        # if self.attention :
                 # attention
-                plt.matshow(decoderAttentions[:di + 1].numpy())
+                # plt.matshow(decoderAttentions[:di + 1].numpy())
 
         predictedBatchOutput = predictedBatchOutput.transpose(0,1) # Transpose predicted output for row to row comparison
 

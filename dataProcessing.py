@@ -55,6 +55,7 @@ class DataProcessing():
 
         self.cellType = configs['cellType']
         self.attention = configs['attention']
+        self.attention = configs['debug']
         self.batchSize = configs['batchSize']
         self.epochs = configs['epochs']
         self.learningRate = configs['learningRate']
@@ -107,6 +108,15 @@ class DataProcessing():
         self.numTrainPairs = len(source) # Number of Pairs in Train Data
 
         # Find maximum length of a word
+        self.maxLengthWord = self.findMaxLengthWord(source, target)
+
+        # Create the required dictionaries
+        sourceVocab = self.dictionaryLookup(sourceChars)
+        targetVocab = self.dictionaryLookup(targetChars)
+
+        return sourceVocab, targetVocab
+    
+    def findMaxLengthWord(self, source, target) :
         self.maxSourceLengthWord = max([len(txt) for txt in source])
         self.maxTargetLengthWord = max([len(txt) for txt in target])
 
@@ -121,11 +131,7 @@ class DataProcessing():
 
         self.maxLengthWord = max(self.maxSourceLengthWord, self.maxTargetLengthWord) 
 
-        # Create the required dictionaries
-        sourceVocab = self.dictionaryLookup(sourceChars)
-        targetVocab = self.dictionaryLookup(targetChars)
-
-        return sourceVocab, targetVocab
+        return self.maxLengthWord
 
     def tensorFromWord(self, charToInt, word) :
 

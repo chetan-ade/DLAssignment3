@@ -17,7 +17,8 @@ def sweepTrain() :
     # Update configs using wandb sweep configs
     configs["hiddenSize"]               = wandb.config.hidden_size
     configs["cellType"]                 = wandb.config.cell_type
-    configs["numLayersEncoderDecoder"]  = wandb.config.num_layers
+    configs["numLayersEncoder"]         = wandb.config.num_layers_encoder
+    configs["numLayersDecoder"]         = wandb.config.num_layers_decoder
     configs["dropout"]                  = wandb.config.drop_out
     configs["embeddingSize"]            = wandb.config.embedding_size
     configs["bidirectional"]            = wandb.config.bidirectional
@@ -29,10 +30,14 @@ def sweepTrain() :
     wandb.run.name = ( # Wandb Run Name
         "cell_type_"
         + str(wandb.config.cell_type)
-        + "_numLayers_"
-        + str(wandb.config.num_layers)
+        + "_numLayersEncoder_"
+        + str(wandb.config.num_layers_encoder)
+        + "_numLayersDecoder_"
+        + str(wandb.config.num_layers_decoder)
         + "_attention_"
         + str(wandb.config.attention)
+        + "_epochs_"
+        + str(wandb.config.epoch)
     )
 
     main.trainForConfigs(configs, dataProcessor)  # Train for configurations
@@ -50,13 +55,15 @@ if __name__ == "__main__":
         'hiddenSize'                : 64                ,   # Hidden Size in Cell Layer
         'cellType'                  : 'LSTM'            ,   # Cell Type = ['RNN', 'GRU', 'LSTM']
         'embeddingSize'             : 256               ,   # Embedding Size for each character
-        'numLayersEncoderDecoder'   : 3                 ,   # Number of RNN Layers in Encoder / Decoder
+        'numLayersEncoder'          : 3                 ,   # Number of RNN Layers in Encoder / Decoder
+        'numLayersDecoder'          : 3                 ,
         'dropout'                   : 0                 ,   # Dropout Probability
-        'attention'                 : False             ,   # True = AttentionDecoder, False = Decoder
+        'attention'                 : True             ,   # True = AttentionDecoder, False = Decoder
         'batchSize'                 : 512               ,   # Batch Size for Training and Evaluating
         'epochs'                    : 2                 ,   # Total Number of Training Epochs
         'bidirectional'             : True              ,   # Bidirectional Flag
         'learningRate'              : 0.001             ,   # Optimizer learning rate
+        'debug'                     : False
 
     }
 
@@ -87,7 +94,11 @@ if __name__ == "__main__":
                 'values': [1e-2, 1e-3]
             },
             
-            'num_layers': {
+            'num_layers_encoder': {
+                'values': [1, 2, 3]
+            },
+
+            'num_layers_decoder': {
                 'values': [1, 2, 3]
             },
             
@@ -108,7 +119,7 @@ if __name__ == "__main__":
             },
             
             'attention': {
-                'values': [False]
+                'values': [True, False]
             },
         }
         

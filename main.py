@@ -32,6 +32,9 @@ def trainForConfigs(configs, dataProcessor, fromMain = False) :
 
     modelTraining.train(fromMain) # Train the Encoder Decoder Model 
 
+    # Test Data - Predictions
+    modelTraining.evaluateTest()
+
 if __name__ == "__main__" :
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

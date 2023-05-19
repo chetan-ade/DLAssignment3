@@ -2,6 +2,7 @@ from __future__ import unicode_literals, print_function, division
 import torch
 import random
 import wandb
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -202,14 +203,14 @@ class Training :
         decoderHidden = encoderHidden # initial hidden state for decoder will be final hidden state of encoder
         
         if self.attention :
-            decoderAttentions = torch.zeros(self.maxLengthTensor, self.maxLengthTensor) # Store attentions for plotting
+            decoderAttentions = torch.zeros(self.maxLengthTensor, batchSize, self.maxLengthTensor) # Store attentions for plotting
         
         for di in range(targetTensorLength):
 
             # Compute decoder outputs
             if self.attention :
                 decoderOutput, decoderHidden, decoderAttention = self.decoder(decoderInput, decoderHidden, encoderOutputs.reshape(self.batchSize, self.maxLengthTensor, self.encoder.hiddenSize))
-                # decoderAttentions[di] = decoderAttention.data
+                decoderAttentions[di] = decoderAttention.data
 
             else : 
                 decoderOutput, decoderHidden = self.decoder(decoderInput, decoderHidden)
@@ -221,9 +222,8 @@ class Training :
             decoderInput = torch.cat(tuple(topi))
             predictedBatchOutput[di] = torch.cat(tuple(topi))
 
-        # if self.attention :
-                # attention
-                # plt.matshow(decoderAttentions[:di + 1].numpy())
+        if False : # Make true to plot heatMaps
+                self.plotHeatMaps(decoderAttentions) # plot heatMaps for attention
 
         predictedBatchOutput = predictedBatchOutput.transpose(0,1) # Transpose predicted output for row to row comparison
 
@@ -238,3 +238,149 @@ class Training :
                 correctWords += 1
         
         return loss.item(), correctWords
+    
+    def evaluateTest(self) :
+        
+        ''' Compute loss and accuracy for test loader. '''
+
+        loader = DataLoader(self.dataProcessor.testTensorPairs, batch_size = self.batchSize, shuffle = True)
+
+        loss = 0
+        totalCorrectWords = 0
+        
+        batchNumber = 1
+        
+        totalWords = len(loader.sampler)
+        totalBatches = len(loader.sampler) // self.dataProcessor.batchSize
+
+        criterion = nn.NLLLoss() # Loss Function
+
+        for sourceTensor, targetTensor in loader :
+            batchLoss, correctWords = self.evaluateOneBatchTest(sourceTensor, targetTensor, criterion) # Evaluate each batch
+
+            loss += batchLoss
+            totalCorrectWords += correctWords
+
+            if batchNumber % (totalBatches // 10) == 0 :
+                print("Evaluate Test Batch : " + str(batchNumber) + "/" + str(totalBatches))
+            
+            batchNumber += 1 
+
+        return (loss / totalBatches), (100 * totalCorrectWords / totalWords)
+
+    def evaluateOneBatchTest(self, sourceTensorBatch, targetTensorBatch, criterion) :
+
+        ''' Evaluate a batch and return loss and number of correct words. '''
+
+        loss = 0
+        correctWords = 0
+
+        batchSize = self.dataProcessor.batchSize
+        device = self.dataProcessor.device
+        maxLengthWord = self.dataProcessor.maxLengthWord 
+        
+        sourceTensor = Variable(sourceTensorBatch.transpose(0, 1))
+        targetTensor = Variable(targetTensorBatch.transpose(0, 1))
+        
+        sourceTensorLength = sourceTensor.size()[0]
+        targetTensorLength = targetTensor.size()[0]
+
+        predictedBatchOutput = torch.zeros(targetTensorLength, batchSize, device = self.dataProcessor.device)
+
+        encoderHidden = self.encoder.initHidden() # Initialize initial hidden state of encoder
+        if self.dataProcessor.cellType == "LSTM":
+            encoderCell = self.encoder.initHidden()
+            encoderHidden = (encoderHidden, encoderCell)
+
+        if self.attention:
+            encoderOutputs = torch.zeros(maxLengthWord + 1, batchSize, self.encoder.hiddenSize, device = device) # Store encoder outputs for attention
+
+        for ei in range(sourceTensorLength):
+            encoderOutput, encoderHidden = self.encoder(sourceTensor[ei], encoderHidden) # Encode each charIndex
+
+            if self.attention :
+                encoderOutputs[ei] = encoderOutput[0]
+
+        decoderInput = torch.tensor([[self.dataProcessor.SOW2Int] * batchSize], device = device) # Initialize input to decoder with start of word token
+        decoderHidden = encoderHidden # initial hidden state for decoder will be final hidden state of encoder
+        
+        if self.attention :
+            decoderAttentions = torch.zeros(self.maxLengthTensor, batchSize, self.maxLengthTensor) # Store attentions for plotting
+        
+        for di in range(targetTensorLength):
+
+            # Compute decoder outputs
+            if self.attention :
+                decoderOutput, decoderHidden, decoderAttention = self.decoder(decoderInput, decoderHidden, encoderOutputs.reshape(self.batchSize, self.maxLengthTensor, self.encoder.hiddenSize))
+                decoderAttentions[di] = decoderAttention.data
+
+            else : 
+                decoderOutput, decoderHidden = self.decoder(decoderInput, decoderHidden)
+            
+            loss += criterion(decoderOutput, targetTensor[di].squeeze()) # Compute point loss
+
+            # Store predicted outputs
+            topv, topi = decoderOutput.data.topk(1)
+            decoderInput = torch.cat(tuple(topi))
+            predictedBatchOutput[di] = torch.cat(tuple(topi))
+
+        if False : # Make true to plot heatMaps
+                self.plotHeatMaps(decoderAttentions) # plot heatMaps for attention
+
+        predictedBatchOutput = predictedBatchOutput.transpose(0,1) # Transpose predicted output for row to row comparison
+
+        ignore = [self.dataProcessor.SOW2Int, self.dataProcessor.EOW2Int, self.dataProcessor.PAD2Int] 
+
+        f = open("predictions_vanilla.txt", "a")
+        
+        for di in range(predictedBatchOutput.size()[0]):
+
+            predicted = [letter.item() for letter in predictedBatchOutput[di] if letter not in ignore]
+            actual = [letter.item() for letter in targetTensorBatch[di] if letter not in ignore]
+
+            if predicted == actual:
+                correctWords += 1
+
+            predictedChars = [self.dataProcessor.targetIntToChar[char] for char in predicted]
+            actualChars = [self.dataProcessor.targetIntToChar[char] for char in actual]
+
+            predictedWord = "".join([str(i) for i in predictedChars])
+            actualWord = "".join([str(i) for i in actualChars])
+
+            outputString = predictedWord + " , " + actualWord
+            f.write(outputString)
+
+        f.close()
+        
+        return loss.item(), correctWords
+
+    def plotHeatMaps(self, attentions) :
+
+        heatMaps = []
+
+        # Iterate over the volume to access the various heatMaps
+        for j in range(10) :
+            heatMap = np.zeros((self.maxLengthTensor, self.maxLengthTensor))
+
+            for i in range(attentions.shape[0]):
+                for k in range(attentions.shape[2]):
+                    heatMap[i][k] = attentions[i][j][k]
+
+            heatMaps.append(heatMap)
+
+        # Images to logging into wandB
+        wandbImages = []
+
+        # Initialize wandb
+        wandb.init(
+            project = self.wandb_project_name,
+            entity = self.wandb_entity
+        )
+
+        # Create a plot for each of the heatmap
+        for heatMap in heatMaps :
+            wandbImage = wandb.Image(heatMap)
+            wandbImages.append(wandbImage)
+
+        # Log the images to WandB
+        wandb.log({"HeatMaps" : wandbImages})

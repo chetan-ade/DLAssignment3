@@ -10,6 +10,15 @@ CS6910 Deep Learning Assignment 3 - Building and training a RNN model from scrat
 The *wandb report* can be found in the following link:
 
 https://wandb.ai/cs22m033/DL%20Assignment%203/reports/CS6910-Assignment-3-Seq2Seq-Character-level-Neural-Machine-Transliteration--Vmlldzo0Mzk5Nzk4
+
+## Dataset
+
+We have used a sample of the Aksharantar dataset released by AI4Bharat. This dataset contains pairs of the following form: 
+
+    ajanabee,अजनबी
+
+We have used the *Hindi* dataset. The dataset contains word pairs where one word is in English, while the other word represents the English word in Devnagiri Script. 
+
 ## Usage
 ### To run code with wandb -
 

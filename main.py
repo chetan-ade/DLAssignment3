@@ -33,7 +33,7 @@ def trainForConfigs(configs, dataProcessor, fromMain = False) :
     modelTraining.train(fromMain) # Train the Encoder Decoder Model 
 
     # Test Data - Predictions
-    modelTraining.evaluateTest()
+    # modelTraining.evaluateTest()
 
 if __name__ == "__main__" :
 

@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
 import matplotlib.pyplot as plt
+import csv
 
 teacherForcingRatio = 0.5
 
@@ -166,7 +167,7 @@ class Training :
 
         return (loss / totalBatches), (100 * totalCorrectWords / totalWords)
 
-    def evaluateOneBatch(self, sourceTensorBatch, targetTensorBatch, criterion) :
+    def evaluateOneBatch(self, sourceTensorBatch, targetTensorBatch, criterion, plotHeatMaps = False) :
 
         ''' Evaluate a batch and return loss and number of correct words. '''
 
@@ -222,7 +223,7 @@ class Training :
             decoderInput = torch.cat(tuple(topi))
             predictedBatchOutput[di] = torch.cat(tuple(topi))
 
-        if False : # Make true to plot heatMaps
+        if plotHeatMaps : 
                 self.plotHeatMaps(decoderAttentions) # plot heatMaps for attention
 
         predictedBatchOutput = predictedBatchOutput.transpose(0,1) # Transpose predicted output for row to row comparison
@@ -331,7 +332,8 @@ class Training :
 
         ignore = [self.dataProcessor.SOW2Int, self.dataProcessor.EOW2Int, self.dataProcessor.PAD2Int] 
 
-        f = open("predictions_vanilla.txt", "a")
+        f = open("predictions_vanilla.csv", "a")
+        writer = csv.writer(f)
         
         for di in range(predictedBatchOutput.size()[0]):
 
@@ -348,6 +350,7 @@ class Training :
             actualWord = "".join([str(i) for i in actualChars])
 
             outputString = predictedWord + " , " + actualWord
+            writer.writerow(outputString)
             f.write(outputString)
 
         f.close()

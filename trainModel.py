@@ -12,6 +12,9 @@ from torch.autograd import Variable
 
 import matplotlib.pyplot as plt
 import csv
+import matplotlib.font_manager as fm
+fontpath = './Akshar Unicode.ttf'
+prop = fm.FontProperties(fname = fontpath)
 
 teacherForcingRatio = 0.5
 
@@ -371,19 +374,16 @@ class Training :
 
             heatMaps.append(heatMap)
 
-        # Images to logging into wandB
-        wandbImages = []
+        # create figure
+        fig = plt.figure(figsize=(3, 5))
+        
+        # setting values to rows and column variables
+        rows = 3
+        columns = 3
 
-        # Initialize wandb
-        wandb.init(
-            project = self.wandb_project_name,
-            entity = self.wandb_entity
-        )
+        for i in range(9) : # 3 * 3 grid 
 
-        # Create a plot for each of the heatmap
-        for heatMap in heatMaps :
-            wandbImage = wandb.Image(heatMap)
-            wandbImages.append(wandbImage)
+            fig.add_subplot(rows, columns, i + 1)
 
-        # Log the images to WandB
-        wandb.log({"HeatMaps" : wandbImages})
+            plt.imshow(heatMaps[i], interpolation = 'nearest')
+            plt.colorbar()
